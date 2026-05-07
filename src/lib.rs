@@ -8,3 +8,7 @@
     clippy::too_many_lines,
     clippy::needless_raw_string_hashes
 )]
+
+mod err;
+pub mod geometry;
+pub mod tree;
