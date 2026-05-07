@@ -14,6 +14,7 @@ pub trait Coord:
     + Zero
     + One
 {
+    #[must_use]
     fn mid(self, other: Self) -> Self;
 }
 
@@ -29,9 +30,9 @@ where
         + Zero
         + One,
 {
-    #[allow(clippy::suspicious_operation_groupings)] // Self::one() == other::one()
+    #[allow(clippy::suspicious_operation_groupings)] // Self::one() == other::one() == T::one()
     fn mid(self, other: Self) -> Self {
-        self + ((other - self) / (Self::one() + Self::one()))
+        self + ((other - self) / (T::one() + T::one()))
     }
 }
 
@@ -48,16 +49,39 @@ pub struct Rect<T: Coord> {
 }
 
 impl<T: Coord> Point<T> {
-    pub fn new(x: T, y: T) -> Self {
+    pub const fn new(x: T, y: T) -> Self {
         Self { x, y }
     }
 }
 
 impl<T: Coord> Rect<T> {
+    /// Generate Rect
+    ///
+    /// # Arguments
+    ///
+    /// * `lower`: Lower left bound
+    /// * `upper`: Upper right bound
+    ///
+    /// returns: `Result<Rect<T>, GeometryErr<T>>`
+    ///
+    /// # Errors
+    ///
+    /// `GeometryErr` if the `lower` point is not below left of the `upper` point
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use quadtree::geometry::{Point, Rect};
+    ///
+    /// let lower = Point::new(0, 0);
+    /// let upper = Point::new(1, 1);
+    ///
+    /// let rect = Rect::new(lower, upper).expect("lower was not below upper");
+    /// ```
     pub fn new(lower: Point<T>, upper: Point<T>) -> Result<Self, GeometryErr<T>> {
         if lower.x >= upper.x || lower.y >= upper.y {
-            return Err(GeometryErr::IncorrectOrd { upper, lower });
+            return Err(GeometryErr::IncorrectOrd { lower, upper });
         }
-        Ok(Self { upper, lower })
+        Ok(Self { lower, upper })
     }
 }

@@ -6,7 +6,7 @@ const INITIAL_VEC_CAP: usize = 64; // Eyeballed
 pub struct QuadTree<T: Coord> {
     area: Rect<T>,
     points: Vec<Point<T>>, // No smallvec, because only top lvl would be on the stack
-    children: Option<Box<[QuadTree<T>; 4]>>,
+    children: Option<Box<[Self; 4]>>,
     depth: usize,
     max_depth: usize,
 }
