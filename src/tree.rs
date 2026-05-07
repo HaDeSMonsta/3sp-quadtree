@@ -1,12 +1,11 @@
 use crate::geometry::{Coord, Rect};
-use smallvec::SmallVec;
 
-const SMALLVEC_SIZE: usize = 64; // eyeballed
+const INITIAL_VEC_CAP: usize = 64; // Eyeballed
 
 #[derive(Clone, Debug)]
 pub struct QuadTree<T: Coord> {
     area: Rect<T>,
-    items: SmallVec<[T; SMALLVEC_SIZE]>,
+    items: Vec<T>, // No smallvec, because only top lvl would be on the stack
     children: Option<Box<[QuadTree<T>; 4]>>,
     depth: usize,
     max_depth: usize,
