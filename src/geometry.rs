@@ -1,6 +1,6 @@
 use crate::err::GeometryErr;
 use color_eyre::Result;
-use num_traits::{One, Zero};
+use num_traits::{ConstOne, One, Zero};
 use std::ops::{Add, Div, Mul, Sub};
 
 pub trait Coord:
@@ -13,6 +13,7 @@ pub trait Coord:
     + Div<Output = Self>
     + Zero
     + One
+    + ConstOne
 {
     #[must_use]
     fn mid(self, other: Self) -> Self;
@@ -28,11 +29,13 @@ where
         + Mul<Output = Self>
         + Div<Output = Self>
         + Zero
-        + One,
+        + One
+        + ConstOne,
 {
     #[allow(clippy::suspicious_operation_groupings)] // Self::one() == other::one() == T::one()
+    #[inline] // Should happen automatically, but whatever
     fn mid(self, other: Self) -> Self {
-        self + ((other - self) / (T::one() + T::one()))
+        self + ((other - self) / (T::ONE + T::ONE))
     }
 }
 
