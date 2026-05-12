@@ -1,11 +1,15 @@
 use crate::err::GeometryErr;
 use color_eyre::Result;
 use num_traits::{ConstOne, One, Zero};
+use serde::{Deserialize, Serialize};
+use std::fmt::{Debug, Display};
 use std::ops::{Add, Div, Mul, Sub};
 
 pub trait Coord:
     Copy
     + Clone
+    + Debug
+    + Display
     + PartialOrd
     + Add<Output = Self>
     + Sub<Output = Self>
@@ -14,6 +18,9 @@ pub trait Coord:
     + Zero
     + One
     + ConstOne
+    + Send
+    + Sync
+    + 'static
 {
     #[must_use]
     fn mid(self, other: Self) -> Self;
@@ -23,6 +30,8 @@ impl<T> Coord for T
 where
     T: Copy
         + Clone
+        + Debug
+        + Display
         + PartialOrd
         + Add<Output = Self>
         + Sub<Output = Self>
@@ -30,7 +39,10 @@ where
         + Div<Output = Self>
         + Zero
         + One
-        + ConstOne,
+        + ConstOne
+        + Send
+        + Sync
+        + 'static,
 {
     #[allow(clippy::suspicious_operation_groupings)] // Self::one() == other::one() == T::one()
     #[inline] // Should happen automatically, but whatever
@@ -39,16 +51,16 @@ where
     }
 }
 
-#[derive(Copy, Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Point<T: Coord> {
-    x: T,
-    y: T,
+    pub(crate) x: T,
+    pub(crate) y: T,
 }
 
-#[derive(Copy, Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Rect<T: Coord> {
-    lower: Point<T>,
-    upper: Point<T>,
+    pub(crate) lower: Point<T>,
+    pub(crate) upper: Point<T>,
 }
 
 impl<T: Coord> Point<T> {
@@ -86,5 +98,26 @@ impl<T: Coord> Rect<T> {
             return Err(GeometryErr::IncorrectOrd { lower, upper });
         }
         Ok(Self { lower, upper })
+    }
+
+    pub fn from_coords(low_x: T, low_y: T, high_x: T, high_y: T) -> Result<Self, GeometryErr<T>> {
+        let lower = Point::new(low_x, low_y);
+        let upper = Point::new(high_x, high_y);
+
+        Self::new(lower, upper)
+    }
+
+    pub fn contains(&self, point: &Point<T>) -> bool {
+        point.x >= self.lower.x
+            && point.x <= self.upper.x
+            && point.y >= self.lower.y
+            && point.y <= self.upper.y
+    }
+
+    pub(crate) fn get_centers(&self) -> (T, T) {
+        let center_x = self.lower.x.mid(self.upper.x);
+        let center_y = self.lower.y.mid(self.upper.y);
+
+        (center_x, center_y)
     }
 }

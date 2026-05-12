@@ -6,7 +6,8 @@
     clippy::used_underscore_binding,
     clippy::cognitive_complexity,
     clippy::too_many_lines,
-    clippy::needless_raw_string_hashes
+    clippy::needless_raw_string_hashes,
+    clippy::missing_errors_doc // TODO Remove and document
 )]
 
 mod err;
