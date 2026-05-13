@@ -12,5 +12,5 @@
 
 mod err;
 pub mod geometry;
-mod knn_helper;
+mod knn;
 pub mod tree;
