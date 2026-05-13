@@ -14,6 +14,7 @@ use crate::bin_assets::simra;
 use clap::{CommandFactory, Parser};
 use color_eyre::Result;
 use color_eyre::eyre::Context;
+use quadtree::geometry::Point;
 use quadtree::tree::QuadTree;
 use std::io;
 use std::process::exit;
@@ -45,9 +46,25 @@ fn main() -> Result<()> {
         QuadTree::from_points(&data).context("failed to construct tree from SimRa points")?;
     let insert_time = insert_start.elapsed();
 
-    tree.print_structure();
+    // tree.print_structure();
     info!(tree_size = tree.len(), tree_nodes = tree.nodes());
     info!(?parsing_time, ?insert_time);
+
+    let save_start = Instant::now();
+    tree.save("tree.json")?;
+    let save_time = save_start.elapsed();
+
+    let load_start = Instant::now();
+    let _new_tree: QuadTree<f64> = QuadTree::from_file("tree.json")?;
+    let load_time = load_start.elapsed();
+
+    info!(?save_time, ?load_time);
+
+    let knn_start = Instant::now();
+    let _knn = tree.knn(&Point::new(52.54906128, 13.42094266), 3);
+    let knn_time = knn_start.elapsed();
+    info!(?knn_time);
+    // info!(?knn);
 
     Ok(())
 }
