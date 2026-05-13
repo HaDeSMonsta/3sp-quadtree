@@ -2,7 +2,7 @@ use crate::geometry::{Coord, Rect};
 use crate::tree::{DataPoint, QuadTree};
 
 impl<T: Coord> QuadTree<T> {
-    pub fn range<'a>(&'a self, query: &Rect<T>) -> Vec<&'a DataPoint<T>> {
+    pub fn range(&self, query: &Rect<T>) -> Vec<&DataPoint<T>> {
         let mut result = Vec::new();
         self.range_inner(query, &mut result);
         result

@@ -62,18 +62,18 @@ impl<T: Coord> Ord for CandidateNode<'_, T> {
 }
 
 impl<T: Coord> QuadTree<T> {
-    pub fn nn<'a>(&'a self, query: &Point<T>) -> Option<&'a DataPoint<T>> {
+    pub fn nn(&self, query: &Point<T>) -> Option<&DataPoint<T>> {
         self.knn(query, 1).pop()
     }
 
     // Thoughts: Point because it doesn't have to be included
-    pub fn knn<'a>(&'a self, query: &Point<T>, k: usize) -> Vec<&'a DataPoint<T>> {
+    pub fn knn(&self, query: &Point<T>, k: usize) -> Vec<&DataPoint<T>> {
         if k == 0 {
             return Vec::new();
         }
 
         let mut candidates = BinaryHeap::new();
-        let mut best: BinaryHeap<BestNeighbour<'a, T>> = BinaryHeap::with_capacity(k + 1);
+        let mut best: BinaryHeap<BestNeighbour<T>> = BinaryHeap::with_capacity(k + 1);
 
         candidates.push(CandidateNode {
             min_dist2: dist2_point_rect(query, &self.area),
