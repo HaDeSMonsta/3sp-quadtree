@@ -9,7 +9,7 @@
     clippy::needless_raw_string_hashes
 )]
 
-use crate::cli::{Args, Cmd};
+use crate::bin_assets::cli::{Args, Cmd};
 use clap::{CommandFactory, Parser};
 use color_eyre::Result;
 use color_eyre::eyre::Context;
@@ -18,7 +18,7 @@ use std::process::exit;
 use tracing::{info, subscriber};
 use tracing_subscriber::FmtSubscriber;
 
-mod cli;
+mod bin_assets;
 
 #[cfg(target_env = "musl")]
 #[global_allocator]

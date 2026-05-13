@@ -7,7 +7,7 @@ use std::fs;
 const BIN_NAME: &str = env!("CARGO_PKG_NAME");
 const COMPLETIONS_DIR: &str = "completions/";
 
-include!("src/cli.rs");
+include!("src/bin_assets/cli.rs");
 
 fn main() -> Result<()> {
     color_eyre::install().context("failed to install :(")?;
