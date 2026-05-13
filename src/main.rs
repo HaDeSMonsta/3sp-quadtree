@@ -40,35 +40,9 @@ fn main() -> Result<()> {
     let data = simra::parse("simra").context("failed to parse simra data")?;
     let parsing_time = parsing_start.elapsed();
 
-    let min_x = data
-        .iter()
-        .map(|dp| dp.coords().0)
-        .fold(f64::INFINITY, f64::min);
-
-    let max_x = data
-        .iter()
-        .map(|dp| dp.coords().0)
-        .fold(f64::NEG_INFINITY, f64::max);
-
-    let min_y = data
-        .iter()
-        .map(|dp| dp.coords().1)
-        .fold(f64::INFINITY, f64::min);
-
-    let max_y = data
-        .iter()
-        .map(|dp| dp.coords().1)
-        .fold(f64::NEG_INFINITY, f64::max);
-    info!(min_x, min_y, max_x, max_y, size = data.len());
-
-    let mut tree = QuadTree::from_coords(min_x, min_y, max_x, max_y, 100, 100)
-        .context("failed to construct tree")?;
-
     let insert_start = Instant::now();
-    for dp in &data {
-        tree.insert(dp.clone())
-            .with_context(|| format!("failed to insert {dp:?}"))?;
-    }
+    let tree =
+        QuadTree::from_points(&data).context("failed to construct tree from SimRa points")?;
     let insert_time = insert_start.elapsed();
 
     tree.print_structure();

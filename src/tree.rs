@@ -56,6 +56,45 @@ impl<T: Coord> QuadTree<T> {
         Ok(Self::new(rect, level_cap, max_depth))
     }
 
+    pub fn from_points(points: &[DataPoint<T>]) -> Result<Self> {
+        let len = points.len();
+        if len < 2 {
+            bail!(TreeErr::InsufficientPoints::<T>(len));
+        }
+
+        let first = &points[1];
+
+        let (mut min_x, mut min_y) = first.coords();
+        let (mut max_x, mut max_y) = first.coords();
+
+        for dp in &points[1..] {
+            let (x, y) = dp.coords();
+
+            if x < min_x {
+                min_x = x;
+            }
+            if x > max_x {
+                max_x = x;
+            }
+            if y < min_y {
+                min_y = y;
+            }
+            if y > max_y {
+                max_y = y;
+            }
+        }
+
+        let mut tree = Self::from_coords(min_x, min_y, max_x, max_y, 100, 100)
+            .context("failed to construct tree from min/max coords")?;
+
+        for dp in points {
+            tree.insert(dp.clone())
+                .with_context(|| format!("failed to insert {dp:?}"))?; // Is this even possible?
+        }
+
+        Ok(tree)
+    }
+
     pub fn from_file<P: AsRef<Path> + Debug>(path: P) -> Result<Self>
     where
         T: DeserializeOwned,
