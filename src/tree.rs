@@ -2,7 +2,11 @@ use crate::err::TreeErr;
 use crate::geometry::{Coord, Point, Rect};
 use color_eyre::Result;
 use color_eyre::eyre::{Context, bail};
+use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
+use std::fmt::Debug;
+use std::fs;
+use std::path::Path;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct QuadTree<T: Coord> {
@@ -50,6 +54,28 @@ impl<T: Coord> QuadTree<T> {
             .context("failed to create tree due to invalid rect")?;
 
         Ok(Self::new(rect, level_cap, max_depth))
+    }
+
+    pub fn from_file<P: AsRef<Path> + Debug>(path: P) -> Result<Self>
+    where
+        T: DeserializeOwned,
+    {
+        let content = fs::read_to_string(&path).context("failed to read json file")?;
+
+        let parsed = serde_json::from_str(&content).context("failed to parse json file")?;
+
+        Ok(parsed)
+    }
+
+    pub fn save<P: AsRef<Path>>(&self, path: P) -> Result<()>
+    where
+        T: Serialize,
+    {
+        let content = serde_json::to_string(&self).context("failed to serialize tree")?;
+
+        fs::write(&path, &content).context("failed to write to file")?;
+
+        Ok(())
     }
 
     fn new_child(area: Rect<T>, level_cap: usize, depth: usize, max_depth: usize) -> Self {
