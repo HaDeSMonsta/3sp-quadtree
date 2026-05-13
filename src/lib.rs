@@ -13,4 +13,9 @@
 mod err;
 pub mod geometry;
 mod knn;
+mod pip;
 pub mod tree;
+
+pub use geometry::{Point, Rect};
+pub use pip::Polygon;
+pub use tree::{DataPoint, QuadTree};
