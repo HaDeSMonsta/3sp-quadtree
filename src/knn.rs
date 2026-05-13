@@ -62,6 +62,10 @@ impl<T: Coord> Ord for CandidateNode<'_, T> {
 }
 
 impl<T: Coord> QuadTree<T> {
+    pub fn nn<'a>(&'a self, query: &Point<T>) -> Option<&'a DataPoint<T>> {
+        self.knn(query, 1).pop()
+    }
+
     // Thoughts: Point because it doesn't have to be included
     pub fn knn<'a>(&'a self, query: &Point<T>, k: usize) -> Vec<&'a DataPoint<T>> {
         if k == 0 {
