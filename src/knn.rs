@@ -3,27 +3,27 @@ use crate::tree::{DataPoint, QuadTree};
 use std::cmp::Ordering;
 use std::collections::BinaryHeap;
 
-#[derive(Clone, Debug)]
-struct BestNeighbour<T: Coord> {
+#[derive(Clone, Copy, Debug)]
+struct BestNeighbour<'a, T: Coord> {
     dist2: T,
-    data_point: DataPoint<T>,
+    data_point: &'a DataPoint<T>,
 }
 
-impl<T: Coord> PartialEq for BestNeighbour<T> {
+impl<T: Coord> PartialEq for BestNeighbour<'_, T> {
     fn eq(&self, other: &Self) -> bool {
         self.dist2 == other.dist2 && self.data_point.id == other.data_point.id
     }
 }
 
-impl<T: Coord> Eq for BestNeighbour<T> {}
+impl<T: Coord> Eq for BestNeighbour<'_, T> {}
 
-impl<T: Coord> PartialOrd for BestNeighbour<T> {
+impl<T: Coord> PartialOrd for BestNeighbour<'_, T> {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         Some(self.cmp(other))
     }
 }
 
-impl<T: Coord> Ord for BestNeighbour<T> {
+impl<T: Coord> Ord for BestNeighbour<'_, T> {
     fn cmp(&self, other: &Self) -> Ordering {
         self.dist2
             .partial_cmp(&other.dist2)
@@ -63,17 +63,17 @@ impl<T: Coord> Ord for CandidateNode<'_, T> {
 
 impl<T: Coord> QuadTree<T> {
     // Thoughts: Point because it doesn't have to be included
-    pub fn knn(&self, query: &Point<T>, k: usize) -> Vec<DataPoint<T>> {
+    pub fn knn<'a>(&'a self, query: &Point<T>, k: usize) -> Vec<&'a DataPoint<T>> {
         if k == 0 {
             return Vec::new();
         }
 
         let mut candidates = BinaryHeap::new();
-        let mut best: BinaryHeap<BestNeighbour<T>> = BinaryHeap::with_capacity(k + 1);
+        let mut best: BinaryHeap<BestNeighbour<'a, T>> = BinaryHeap::with_capacity(k + 1);
 
         candidates.push(CandidateNode {
-            min_dist2: dist2_point_rect(&query, &self.area),
-            node: &self,
+            min_dist2: dist2_point_rect(query, &self.area),
+            node: self,
         });
 
         while let Some(candidate) = candidates.pop() {
@@ -98,19 +98,13 @@ impl<T: Coord> QuadTree<T> {
                 }
             } else {
                 for data_point in &candidate.node.points {
-                    let dist2 = dist2_point_point(&query, &data_point.point);
+                    let dist2 = dist2_point_point(query, &data_point.point);
 
                     if best.len() < k {
-                        best.push(BestNeighbour {
-                            dist2,
-                            data_point: data_point.clone(),
-                        });
+                        best.push(BestNeighbour { dist2, data_point });
                     } else if best.peek().is_some_and(|worst| dist2 < worst.dist2) {
                         best.pop();
-                        best.push(BestNeighbour {
-                            dist2,
-                            data_point: data_point.clone(),
-                        });
+                        best.push(BestNeighbour { dist2, data_point });
                     }
                 }
             }
@@ -300,7 +294,7 @@ mod tests {
         let q = query(45.0, 45.0);
         let k = 5;
 
-        let tree_result: Vec<usize> = tree.knn(&q, k).iter().map(DataPoint::id).collect();
+        let tree_result: Vec<usize> = tree.knn(&q, k).iter().map(|dp| dp.id).collect();
         let brute_result = brute_force_knn(&all_points, &q, k);
 
         assert_eq!(tree_result, brute_result);
@@ -325,7 +319,7 @@ mod tests {
         let q = query(1.0, 1.0);
         let k = 3;
 
-        let tree_result: Vec<usize> = tree.knn(&q, k).iter().map(DataPoint::id).collect();
+        let tree_result: Vec<usize> = tree.knn(&q, k).iter().map(|dp| dp.id).collect();
         let brute_result = brute_force_knn(&all_points, &q, k);
 
         assert_eq!(tree_result, brute_result);
