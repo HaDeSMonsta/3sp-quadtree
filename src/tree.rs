@@ -8,7 +8,7 @@ use std::fmt::Debug;
 use std::fs;
 use std::path::Path;
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[allow(clippy::unsafe_derive_deserialize)] // The unsafe is in knn, doesn't matter here
 pub struct QuadTree<T: Coord> {
     pub(crate) area: Rect<T>,

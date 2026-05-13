@@ -59,7 +59,7 @@ pub struct Point<T: Coord> {
     pub(crate) y: T,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Rect<T: Coord> {
     pub(crate) lower: Point<T>,
     pub(crate) upper: Point<T>,
