@@ -47,8 +47,12 @@ fn parse_file<P: AsRef<Path> + Debug>(path: P) -> Result<Vec<DataPoint<f64>>> {
         .skip(idx + 3)
         .filter_map(|line| {
             let mut split = line.split(',');
-            let x = split.next()?.trim().parse().ok()?;
-            let y = split.next()?.trim().parse().ok()?;
+            let x = split.next()?.trim().parse::<f64>().ok()?;
+            let y = split.next()?.trim().parse::<f64>().ok()?;
+
+            if !x.is_finite() || !y.is_finite() {
+                return None;
+            }
 
             let id = id_cnt.fetch_add(1, Ordering::AcqRel);
             let dp = DataPoint::new_coords(id, x, y);
