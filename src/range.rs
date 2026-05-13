@@ -2,13 +2,13 @@ use crate::geometry::{Coord, Rect};
 use crate::tree::{DataPoint, QuadTree};
 
 impl<T: Coord> QuadTree<T> {
-    pub fn range(&self, query: &Rect<T>) -> Vec<DataPoint<T>> {
+    pub fn range<'a>(&'a self, query: &Rect<T>) -> Vec<&'a DataPoint<T>> {
         let mut result = Vec::new();
         self.range_inner(query, &mut result);
         result
     }
 
-    fn range_inner(&self, query: &Rect<T>, result: &mut Vec<DataPoint<T>>) {
+    fn range_inner<'a>(&'a self, query: &Rect<T>, result: &mut Vec<&'a DataPoint<T>>) {
         if !rects_intersect(&self.area, query) {
             return;
         }
@@ -23,7 +23,7 @@ impl<T: Coord> QuadTree<T> {
 
         for data_point in &self.points {
             if query.contains(&data_point.point) {
-                result.push(data_point.clone());
+                result.push(data_point);
             }
         }
     }
@@ -62,7 +62,7 @@ mod tests {
         insert(&mut tree, 2, 90.0, 90.0);
 
         let result = tree.range(&rect(0.0, 0.0, 25.0, 25.0));
-        let ids: Vec<usize> = result.iter().map(DataPoint::id).collect();
+        let ids: Vec<usize> = result.iter().map(|dp| dp.id).collect();
 
         assert_eq!(ids, vec![0, 1]);
     }
@@ -86,7 +86,7 @@ mod tests {
         insert(&mut tree, 2, 30.0, 30.0);
 
         let result = tree.range(&rect(10.0, 10.0, 20.0, 20.0));
-        let ids: Vec<usize> = result.iter().map(DataPoint::id).collect();
+        let ids: Vec<usize> = result.iter().map(|dp| dp.id).collect();
 
         assert_eq!(ids, vec![0, 1]);
     }
@@ -108,7 +108,7 @@ mod tests {
         insert(&mut tree, 2, 99.0, 99.0);
 
         let result = tree.range(&rect(90.0, 90.0, 110.0, 110.0));
-        let ids: Vec<usize> = result.iter().map(DataPoint::id).collect();
+        let ids: Vec<usize> = result.iter().map(|dp| dp.id).collect();
 
         assert_eq!(ids, vec![2]);
     }
@@ -122,7 +122,7 @@ mod tests {
 
         let query = Rect::new(Point::new(0, 0), Point::new(25, 25)).unwrap();
         let result = tree.range(&query);
-        let ids: Vec<usize> = result.iter().map(DataPoint::id).collect();
+        let ids: Vec<usize> = result.iter().map(|dp| dp.id).collect();
 
         assert_eq!(ids, vec![0, 1]);
     }
