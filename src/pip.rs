@@ -22,11 +22,10 @@ impl<T: Coord> Polygon<T> {
             );
         }
 
-        let first = vertices[0].clone();
-        let mut min_x = first.x;
-        let mut min_y = first.y;
-        let mut max_x = first.x;
-        let mut max_y = first.y;
+        let mut min_x = vertices[0].x;
+        let mut min_y = vertices[0].y;
+        let mut max_x = vertices[0].x;
+        let mut max_y = vertices[0].y;
 
         for point in &vertices[1..] {
             if point.x < min_x {
