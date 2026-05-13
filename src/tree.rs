@@ -161,7 +161,7 @@ impl<T: Coord> QuadTree<T> {
         }
 
         let idx = Self::child_idx_for_point(&self.area, &data_point.point);
-        let Some(child) = self.children.as_mut() else {
+        let Some(child) = &mut self.children else {
             bail!(TreeErr::Internal::<T>(format!(
                 "child not found after subdivide at depth {}, max_depth={}, idx={idx}",
                 self.depth, self.max_depth

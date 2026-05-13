@@ -116,7 +116,7 @@ impl<T: Coord> QuadTree<T> {
 
         let mut result = best.into_vec();
 
-        // Usually faster than stable + no alloc and we don't need stable
+        // Usually faster than stable + no alloc, and we don't need stable
         result.sort_unstable_by(|a, b| {
             a.dist2
                 .partial_cmp(&b.dist2)
