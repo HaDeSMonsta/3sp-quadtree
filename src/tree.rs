@@ -101,7 +101,10 @@ impl<T: Coord> QuadTree<T> {
         // Otherwise, children already exist
         if self.children.is_none() {
             // Leaf with space, or leaf at max depth
-            if self.points.len() < self.level_cap || self.depth == self.max_depth {
+            if self.points.len() < self.level_cap
+                || self.depth == self.max_depth
+                || !self.is_subdividable()
+            {
                 self.points.push(data_point);
                 return Ok(());
             }
@@ -122,9 +125,25 @@ impl<T: Coord> QuadTree<T> {
         Ok(())
     }
 
+    // Problem, we only cover very little space, which leads to this:
+    // 2026-05-13T10:21:52.837243Z  INFO quadtree: min_x=52.26618607 min_y=13.049611666666665 max_x=52.601945 max_y=13.58743953 size=372469
+    // Error:
+    //    0: failed to insert DataPoint { id: 1051, point: Point { x: 52.49868333333334, y: 13.301113333333335 } }
+    //    1: failed to subdivide
+    //    2: failed to create rect 0
+    //    3: lower (52.49868333333333, 13.301113333333337) must be lower-left then upper (52.49868333333333, 13.301113333333344)
+    // Solution: Do not divide if floats don't play nicely
+    // CONSIDER: Before inserting, just shift the values so this never executes (but keep as a fallback (or remove, because less paths to check))
+    fn is_subdividable(&self) -> bool {
+        let rect = &self.area;
+        let (cx, cy) = rect.get_centers();
+
+        cx > rect.lower.x && cx < rect.upper.x && cy > rect.lower.y && cy < rect.upper.y
+    }
+
     fn subdivide(&mut self) -> Result<()> {
         if self.depth == self.max_depth {
-            bail!(TreeErr::MaxDepthReached::<T>(self.depth));
+            bail!(TreeErr::MaxDepthReached::<T>(self.depth)); // Should never execute btw., we always check before
         }
         let rect = &self.area;
         let (cx, cy) = rect.get_centers();
@@ -173,10 +192,74 @@ impl<T: Coord> QuadTree<T> {
 
         ret
     }
+
+    pub fn len(&self) -> usize {
+        self.children
+            .as_ref()
+            .map_or(self.points.len(), |children| {
+                let mut sum = 0;
+                for child in children.iter() {
+                    sum += child.len();
+                }
+                sum
+            })
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+
+    pub fn nodes(&self) -> usize {
+        let child_cnt = self.children.as_ref().map_or(0, |children| {
+            let mut sum = 0;
+            for child in children.iter() {
+                sum += child.nodes();
+            }
+            sum
+        });
+        child_cnt + 1
+    }
+
+    pub fn print_structure(&self) {
+        self.print_structure_inner("", true, "root");
+    }
+
+    fn print_structure_inner(&self, prefix: &str, is_last: bool, name: &str) {
+        let connector = if is_last { "└──" } else { "├──" };
+        let elements = if self.children.is_some() {
+            String::new()
+        } else {
+            format!(" {} elements", self.len())
+        };
+
+        println!("{prefix}{connector} {name}:{elements}");
+
+        let Some(children) = &self.children else {
+            return;
+        };
+
+        let child_prefix = if is_last {
+            format!("{prefix}    ")
+        } else {
+            format!("{prefix}│   ")
+        };
+
+        let child_names = ["upper-left", "upper-right", "lower-left", "lower-right"];
+
+        for (idx, child) in children.iter().enumerate() {
+            child.print_structure_inner(&child_prefix, idx == children.len() - 1, child_names[idx]);
+        }
+    }
 }
+
 impl<T: Coord> DataPoint<T> {
     pub const fn new(id: usize, point: Point<T>) -> Self {
         Self { id, point }
+    }
+
+    pub const fn new_coords(id: usize, x: T, y: T) -> Self {
+        let point = Point::new(x, y);
+        Self::new(id, point)
     }
 
     pub const fn id(&self) -> usize {
