@@ -160,3 +160,189 @@ fn dist2_point_rect<T: Coord>(point: &Point<T>, rect: &Rect<T>) -> T {
 
     dx * dx + dy * dy
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::geometry::Point;
+    use crate::tree::{DataPoint, QuadTree};
+
+    fn make_tree() -> QuadTree<f64> {
+        QuadTree::from_coords(0.0, 0.0, 100.0, 100.0, 4, 10).unwrap()
+    }
+
+    fn insert(tree: &mut QuadTree<f64>, id: usize, x: f64, y: f64) {
+        tree.insert(DataPoint::new_coords(id, x, y)).unwrap();
+    }
+
+    fn query(x: f64, y: f64) -> Point<f64> {
+        Point::new(x, y)
+    }
+
+    // --- Basic correctness ---
+
+    #[test]
+    fn knn_returns_correct_nearest() {
+        let mut tree = make_tree();
+        insert(&mut tree, 0, 10.0, 10.0);
+        insert(&mut tree, 1, 20.0, 20.0);
+        insert(&mut tree, 2, 90.0, 90.0);
+
+        let result = tree.knn(&query(12.0, 12.0), 1);
+
+        assert_eq!(result.len(), 1);
+        assert_eq!(result[0].id(), 0);
+    }
+
+    #[test]
+    fn knn_returns_k_results_sorted_by_distance() {
+        let mut tree = make_tree();
+        insert(&mut tree, 0, 10.0, 10.0); // closest
+        insert(&mut tree, 1, 20.0, 20.0); // second
+        insert(&mut tree, 2, 90.0, 90.0); // farthest
+
+        let result = tree.knn(&query(5.0, 5.0), 2);
+
+        assert_eq!(result.len(), 2);
+        assert_eq!(result[0].id(), 0);
+        assert_eq!(result[1].id(), 1);
+    }
+
+    #[test]
+    fn knn_returns_all_points_when_k_exceeds_tree_size() {
+        let mut tree = make_tree();
+        insert(&mut tree, 0, 10.0, 10.0);
+        insert(&mut tree, 1, 50.0, 50.0);
+
+        let result = tree.knn(&query(5.0, 5.0), 100);
+
+        assert_eq!(result.len(), 2);
+    }
+
+    // --- Edge cases ---
+
+    #[test]
+    fn knn_k_zero_returns_empty() {
+        let mut tree = make_tree();
+        insert(&mut tree, 0, 10.0, 10.0);
+
+        let result = tree.knn(&query(10.0, 10.0), 0);
+
+        assert!(result.is_empty());
+    }
+
+    #[test]
+    fn knn_empty_tree_returns_empty() {
+        let tree = make_tree();
+
+        let result = tree.knn(&query(50.0, 50.0), 3);
+
+        assert!(result.is_empty());
+    }
+
+    #[test]
+    fn knn_query_on_exact_point() {
+        let mut tree = make_tree();
+        insert(&mut tree, 0, 30.0, 30.0);
+        insert(&mut tree, 1, 60.0, 60.0);
+
+        let result = tree.knn(&query(30.0, 30.0), 1);
+
+        assert_eq!(result.len(), 1);
+        assert_eq!(result[0].id(), 0);
+    }
+
+    #[test]
+    fn knn_query_outside_tree_bounds() {
+        let mut tree = make_tree(); // bounds: (0,0)-(100,100)
+        insert(&mut tree, 0, 1.0, 1.0);
+        insert(&mut tree, 1, 99.0, 99.0);
+
+        // Query outside the tree area entirely
+        let result = tree.knn(&query(200.0, 200.0), 1);
+
+        assert_eq!(result.len(), 1);
+        assert_eq!(result[0].id(), 1);
+    }
+
+    // --- Larger dataset for cross-checking with brute force ---
+
+    fn brute_force_knn(points: &[DataPoint<f64>], query: &Point<f64>, k: usize) -> Vec<usize> {
+        let mut with_dist: Vec<(usize, f64)> = points
+            .iter()
+            .map(|dp| {
+                let dx = dp.point().x - query.x;
+                let dy = dp.point().y - query.y;
+                (dp.id(), dx.mul_add(dx, dy * dy))
+            })
+            .collect();
+
+        with_dist.sort_by(|a, b| a.1.total_cmp(&b.1).then(a.0.cmp(&b.0)));
+        with_dist.into_iter().take(k).map(|(id, _)| id).collect()
+    }
+
+    #[test]
+    #[allow(clippy::cast_precision_loss)]
+    fn knn_matches_brute_force_small_grid() {
+        let mut tree = make_tree();
+        let mut all_points = Vec::new();
+
+        for i in 0..10 {
+            for j in 0..10 {
+                let id = i * 10 + j;
+                let x = (i as f64).mul_add(9.0, 1.0);
+                let y = (j as f64).mul_add(9.0, 1.0);
+                insert(&mut tree, id, x, y);
+                all_points.push(DataPoint::new_coords(id, x, y));
+            }
+        }
+
+        let q = query(45.0, 45.0);
+        let k = 5;
+
+        let tree_result: Vec<usize> = tree.knn(&q, k).iter().map(DataPoint::id).collect();
+        let brute_result = brute_force_knn(&all_points, &q, k);
+
+        assert_eq!(tree_result, brute_result);
+    }
+
+    #[test]
+    #[allow(clippy::cast_precision_loss)]
+    fn knn_matches_brute_force_corner_query() {
+        let mut tree = make_tree();
+        let mut all_points = Vec::new();
+
+        for i in 0..8 {
+            for j in 0..8 {
+                let id = i * 8 + j;
+                let x = (i as f64).mul_add(12.0, 2.0);
+                let y = (j as f64).mul_add(12.0, 2.0);
+                insert(&mut tree, id, x, y);
+                all_points.push(DataPoint::new_coords(id, x, y));
+            }
+        }
+
+        let q = query(1.0, 1.0);
+        let k = 3;
+
+        let tree_result: Vec<usize> = tree.knn(&q, k).iter().map(DataPoint::id).collect();
+        let brute_result = brute_force_knn(&all_points, &q, k);
+
+        assert_eq!(tree_result, brute_result);
+    }
+
+    // --- Integer coordinates ---
+
+    #[test]
+    fn knn_integer_coords() {
+        let mut tree = QuadTree::from_coords(0, 0, 100, 100, 4, 10).unwrap();
+        tree.insert(DataPoint::new_coords(0, 10, 10)).unwrap();
+        tree.insert(DataPoint::new_coords(1, 20, 20)).unwrap();
+        tree.insert(DataPoint::new_coords(2, 90, 90)).unwrap();
+
+        let result = tree.knn(&Point::new(12, 12), 2);
+
+        assert_eq!(result.len(), 2);
+        assert_eq!(result[0].id(), 0);
+        assert_eq!(result[1].id(), 1);
+    }
+}
