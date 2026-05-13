@@ -61,7 +61,7 @@ fn main() -> Result<()> {
     info!(?save_time, ?load_time);
 
     let knn_start = Instant::now();
-    let _knn = tree.knn(&Point::new(52.54906128, 13.42094266), 3);
+    let _knn = tree.knn(&Point::new(52.549_061_28, 13.420_942_66), 3);
     let knn_time = knn_start.elapsed();
     info!(?knn_time);
     // info!(?knn);
