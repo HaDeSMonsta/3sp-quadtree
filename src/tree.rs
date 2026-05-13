@@ -175,15 +175,15 @@ impl<T: Coord> QuadTree<T> {
     }
 }
 impl<T: Coord> DataPoint<T> {
-    pub fn new(id: usize, point: Point<T>) -> Self {
+    pub const fn new(id: usize, point: Point<T>) -> Self {
         Self { id, point }
     }
 
-    pub fn id(&self) -> usize {
+    pub const fn id(&self) -> usize {
         self.id
     }
 
-    pub fn coords(&self) -> (T, T) {
+    pub const fn coords(&self) -> (T, T) {
         (self.point.x, self.point.y)
     }
 }
