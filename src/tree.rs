@@ -152,4 +152,12 @@ impl<T: Coord> DataPoint<T> {
     pub fn new(id: usize, point: Point<T>) -> Self {
         Self { id, point }
     }
+
+    pub fn id(&self) -> usize {
+        self.id
+    }
+
+    pub fn coords(&self) -> (T, T) {
+        (self.point.x, self.point.y)
+    }
 }
