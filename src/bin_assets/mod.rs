@@ -1,2 +1,2 @@
 pub mod cli;
-pub mod parse_simra;
+pub mod simra;

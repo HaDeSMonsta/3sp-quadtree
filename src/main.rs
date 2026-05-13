@@ -10,11 +10,14 @@
 )]
 
 use crate::bin_assets::cli::{Args, Cmd};
+use crate::bin_assets::simra;
 use clap::{CommandFactory, Parser};
 use color_eyre::Result;
 use color_eyre::eyre::Context;
+use quadtree::tree::QuadTree;
 use std::io;
 use std::process::exit;
+use std::time::Instant;
 use tracing::{info, subscriber};
 use tracing_subscriber::FmtSubscriber;
 
@@ -32,6 +35,45 @@ fn main() -> Result<()> {
     let _args = setup().context("setup failed")?;
 
     info!("{BIN_NAME} - {BIN_VERSION}");
+
+    let parsing_start = Instant::now();
+    let data = simra::parse("simra").context("failed to parse simra data")?;
+    let parsing_time = parsing_start.elapsed();
+
+    let min_x = data
+        .iter()
+        .map(|dp| dp.coords().0)
+        .fold(f64::INFINITY, f64::min);
+
+    let max_x = data
+        .iter()
+        .map(|dp| dp.coords().0)
+        .fold(f64::NEG_INFINITY, f64::max);
+
+    let min_y = data
+        .iter()
+        .map(|dp| dp.coords().1)
+        .fold(f64::INFINITY, f64::min);
+
+    let max_y = data
+        .iter()
+        .map(|dp| dp.coords().1)
+        .fold(f64::NEG_INFINITY, f64::max);
+    info!(min_x, min_y, max_x, max_y, size = data.len());
+
+    let mut tree = QuadTree::from_coords(min_x, min_y, max_x, max_y, 100, 100)
+        .context("failed to construct tree")?;
+
+    let insert_start = Instant::now();
+    for dp in &data {
+        tree.insert(dp.clone())
+            .with_context(|| format!("failed to insert {dp:?}"))?;
+    }
+    let insert_time = insert_start.elapsed();
+
+    tree.print_structure();
+    info!(tree_size = tree.len(), tree_nodes = tree.nodes());
+    info!(?parsing_time, ?insert_time);
 
     Ok(())
 }
