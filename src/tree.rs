@@ -9,17 +9,18 @@ use std::fs;
 use std::path::Path;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
+#[allow(clippy::unsafe_derive_deserialize)] // The unsafe is in knn, doesn't matter here
 pub struct QuadTree<T: Coord> {
-    area: Rect<T>,
-    points: Vec<DataPoint<T>>, // No smallvec, because only top lvl would be on the stack
-    level_cap: usize,
+    pub(crate) area: Rect<T>,
+    pub(crate) points: Vec<DataPoint<T>>, // No smallvec, because only top lvl would be on the stack
+    pub(crate) level_cap: usize,
     /// 0: upper-left <br/>
     /// 1: upper-right <br/>
     /// 2: lower-left <br/>
     /// 3: lower-right <br/>
-    children: Option<Box<[Self; 4]>>,
-    depth: usize,
-    max_depth: usize,
+    pub(crate) children: Option<Box<[Self; 4]>>,
+    pub(crate) depth: usize,
+    pub(crate) max_depth: usize,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
