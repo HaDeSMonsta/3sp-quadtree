@@ -187,3 +187,14 @@ impl<T: Coord> DataPoint<T> {
         (self.point.x, self.point.y)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn create() -> Result<()> {
+        let _ = QuadTree::from_coords(1, 2, 3, 4, 5, 6).context("failed to create valid tree")?;
+        Ok(())
+    }
+}
