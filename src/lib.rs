@@ -14,6 +14,7 @@ mod err;
 pub mod geometry;
 mod knn;
 mod pip;
+mod range;
 pub mod tree;
 
 pub use geometry::{Point, Rect};
