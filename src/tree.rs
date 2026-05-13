@@ -8,11 +8,16 @@ use std::fmt::Debug;
 use std::fs;
 use std::path::Path;
 
+// Some thoughts:
+// Duplicate coordinates are allowed (might be different events or whatever)
+// Duplicate IDs are also allowed, that's the users' problem, we assume there are none
+
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[allow(clippy::unsafe_derive_deserialize)] // The unsafe is in knn, doesn't matter here
 pub struct QuadTree<T: Coord> {
     pub(crate) area: Rect<T>,
     pub(crate) points: Vec<DataPoint<T>>, // No smallvec, because only top lvl would be on the stack
+    pub(crate) point_count: usize,
     pub(crate) level_cap: usize,
     /// 0: upper-left <br/>
     /// 1: upper-right <br/>
@@ -34,6 +39,7 @@ impl<T: Coord> QuadTree<T> {
         Self {
             area,
             points: Vec::with_capacity(level_cap),
+            point_count: 0,
             level_cap,
             children: None,
             depth: 0,
@@ -122,6 +128,7 @@ impl<T: Coord> QuadTree<T> {
         Self {
             area,
             points: Vec::with_capacity(level_cap),
+            point_count: 0,
             level_cap,
             children: None,
             depth,
@@ -146,6 +153,7 @@ impl<T: Coord> QuadTree<T> {
                 || !self.is_subdividable()
             {
                 self.points.push(data_point);
+                self.point_count += 1;
                 return Ok(());
             }
 
@@ -161,8 +169,58 @@ impl<T: Coord> QuadTree<T> {
         };
 
         child[idx].insert(data_point)?;
+        self.point_count += 1;
 
         Ok(())
+    }
+
+    pub fn remove(&mut self, id: usize) -> Option<DataPoint<T>> {
+        if self.children.is_none() {
+            let idx = self.points.iter().position(|dp| dp.id == id)?;
+            self.point_count -= 1;
+            return Some(self.points.swap_remove(idx));
+        }
+
+        let children = self.children.as_mut()?;
+
+        for child in children.iter_mut() {
+            if let Some(removed) = child.remove(id) {
+                self.point_count -= 1;
+                self.rebalance();
+                return Some(removed);
+            }
+        }
+
+        None
+    }
+
+    // Only looks children at current level -> After finding point, rebalance up and after last return one last time
+    fn rebalance(&mut self) {
+        if self.point_count > self.level_cap {
+            return;
+        }
+        let Some(children) = &mut self.children else {
+            return;
+        };
+
+        let mut points = Vec::with_capacity(self.level_cap);
+
+        for child in children.as_mut() {
+            child.drain_points(&mut points);
+        }
+
+        self.points = points;
+        self.children = None;
+    }
+
+    fn drain_points(&mut self, out: &mut Vec<DataPoint<T>>) {
+        if let Some(children) = &mut self.children {
+            for child in children.iter_mut() {
+                child.drain_points(out); // Not even sure this is ever called, remove calls on every level, no?
+            }
+        }
+
+        out.append(&mut self.points);
     }
 
     // Problem, we only cover very little space, which leads to this:
