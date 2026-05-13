@@ -22,7 +22,7 @@ pub struct QuadTree<T: Coord> {
     max_depth: usize,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct DataPoint<T: Coord> {
     pub(crate) id: usize,
     pub(crate) point: Point<T>,
@@ -289,6 +289,28 @@ impl<T: Coord> QuadTree<T> {
             child.print_structure_inner(&child_prefix, idx == children.len() - 1, child_names[idx]);
         }
     }
+
+    // Use this if you care about the id
+    pub fn contains_dp(&self, data_point: &DataPoint<T>) -> bool {
+        self.children.as_ref().map_or_else(
+            || self.points.iter().any(|dp| dp == data_point),
+            |children| {
+                let idx = Self::child_idx_for_point(&self.area, &data_point.point);
+                children[idx].contains_dp(&data_point)
+            },
+        )
+    }
+
+    // Use this if you only care about the coords
+    pub fn contains_p(&self, point: &Point<T>) -> bool {
+        self.children.as_ref().map_or_else(
+            || self.points.iter().any(|dp| dp.point == *point),
+            |children| {
+                let idx = Self::child_idx_for_point(&self.area, &point);
+                children[idx].contains_p(&point)
+            },
+        )
+    }
 }
 
 impl<T: Coord> DataPoint<T> {
@@ -303,6 +325,10 @@ impl<T: Coord> DataPoint<T> {
 
     pub const fn id(&self) -> usize {
         self.id
+    }
+
+    pub const fn point(&self) -> &Point<T> {
+        &self.point
     }
 
     pub const fn coords(&self) -> (T, T) {

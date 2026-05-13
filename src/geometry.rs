@@ -10,6 +10,7 @@ pub trait Coord:
     + Clone
     + Debug
     + Display
+    + PartialEq
     + PartialOrd
     + Add<Output = Self>
     + Sub<Output = Self>
@@ -32,6 +33,7 @@ where
         + Clone
         + Debug
         + Display
+        + PartialEq
         + PartialOrd
         + Add<Output = Self>
         + Sub<Output = Self>
@@ -51,7 +53,7 @@ where
     }
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Point<T: Coord> {
     pub(crate) x: T,
     pub(crate) y: T,
