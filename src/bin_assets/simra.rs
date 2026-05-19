@@ -5,17 +5,17 @@ use std::fmt::Debug;
 use std::fs;
 use std::io::{BufRead, BufReader};
 use std::path::Path;
-use std::sync::atomic::{AtomicUsize, Ordering};
 
 pub fn parse<P: AsRef<Path> + Debug>(path: P) -> Result<Vec<DataPoint<f64>>> {
+    let mut id_cnt = 0;
     if path.as_ref().is_dir() {
-        parse_dir(&path).with_context(|| format!("failed to parse dir: {path:?}"))
+        parse_dir(&path, &mut id_cnt).with_context(|| format!("failed to parse dir: {path:?}"))
     } else {
-        parse_file(&path).with_context(|| format!("failed to parse file: {path:?}"))
+        parse_file(&path, &mut id_cnt).with_context(|| format!("failed to parse file: {path:?}"))
     }
 }
 
-fn parse_dir<P: AsRef<Path>>(path: P) -> Result<Vec<DataPoint<f64>>> {
+fn parse_dir<P: AsRef<Path>>(path: P, mut id_cnt: &mut usize) -> Result<Vec<DataPoint<f64>>> {
     let mut data = vec![];
     let dir = fs::read_dir(path).context("failed to read dir")?;
 
@@ -23,9 +23,9 @@ fn parse_dir<P: AsRef<Path>>(path: P) -> Result<Vec<DataPoint<f64>>> {
         let path = entry.context("invalid file in dir")?.path();
 
         let mut dir_data = if path.is_dir() {
-            parse_dir(path).context("failed to parse recursive dir")?
+            parse_dir(path, &mut id_cnt).context("failed to parse recursive dir")?
         } else {
-            parse_file(path).context("failed to parse file in dir")?
+            parse_file(path, &mut id_cnt).context("failed to parse file in dir")?
         };
 
         data.append(&mut dir_data);
@@ -34,8 +34,7 @@ fn parse_dir<P: AsRef<Path>>(path: P) -> Result<Vec<DataPoint<f64>>> {
     Ok(data)
 }
 
-fn parse_file<P: AsRef<Path> + Debug>(path: P) -> Result<Vec<DataPoint<f64>>> {
-    let id_cnt = AtomicUsize::new(0);
+fn parse_file<P: AsRef<Path> + Debug>(path: P, id_cnt: &mut usize) -> Result<Vec<DataPoint<f64>>> {
     let lines = read(&path)?;
 
     let idx = lines
@@ -54,7 +53,8 @@ fn parse_file<P: AsRef<Path> + Debug>(path: P) -> Result<Vec<DataPoint<f64>>> {
                 return None;
             }
 
-            let id = id_cnt.fetch_add(1, Ordering::AcqRel);
+            let id = *id_cnt;
+            *id_cnt += 1;
             let dp = DataPoint::new_coords(id, x, y);
 
             Some(dp)
