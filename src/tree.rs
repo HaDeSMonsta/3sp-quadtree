@@ -177,13 +177,11 @@ impl<T: Coord> QuadTree<T> {
     }
 
     pub fn remove(&mut self, id: usize) -> Option<DataPoint<T>> {
-        if self.children.is_none() {
+        let Some(children) = &mut self.children else {
             let idx = self.points.iter().position(|dp| dp.id == id)?;
             self.point_count -= 1;
             return Some(self.points.swap_remove(idx));
-        }
-
-        let children = self.children.as_mut()?;
+        };
 
         for child in children.iter_mut() {
             if let Some(removed) = child.remove(id) {
