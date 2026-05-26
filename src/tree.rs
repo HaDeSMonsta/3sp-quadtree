@@ -138,12 +138,12 @@ impl<T: Coord> QuadTree<T> {
         }
     }
 
-    pub fn insert(&mut self, data_point: DataPoint<T>) -> Result<()> {
+    pub fn insert(&mut self, data_point: DataPoint<T>) -> Result<(), TreeErr<T>> {
         if !self.area.contains(&data_point.point) {
-            bail!(TreeErr::InsertionOutOfBounds {
+            return Err(TreeErr::InsertionOutOfBounds {
                 rect: self.area.clone(),
                 data_point,
-            })
+            });
         }
 
         // Leaf -> Insert, or generate children
@@ -159,15 +159,16 @@ impl<T: Coord> QuadTree<T> {
                 return Ok(());
             }
 
-            self.subdivide().context("failed to subdivide")?;
+            self.subdivide()
+                .expect("failed to subdivide after checking it is safe to");
         }
 
         let idx = Self::child_idx_for_point(&self.area, &data_point.point);
         let Some(child) = &mut self.children else {
-            bail!(TreeErr::Internal::<T>(format!(
+            panic!(
                 "child not found after subdivide at depth {}, max_depth={}, idx={idx}",
                 self.depth, self.max_depth
-            )))
+            );
         };
 
         child[idx].insert(data_point)?;
@@ -241,8 +242,10 @@ impl<T: Coord> QuadTree<T> {
 
     fn subdivide(&mut self) -> Result<()> {
         if self.depth == self.max_depth {
-            bail!(TreeErr::MaxDepthReached::<T>(self.depth)); // Should never execute btw., we always check before
+            // bail instead of assert because of backtrace, we want to know which caller fucked up
+            bail!("tried to subdivide at max depth, should always be checked before call");
         }
+
         let rect = &self.area;
         let (cx, cy) = rect.get_centers();
 

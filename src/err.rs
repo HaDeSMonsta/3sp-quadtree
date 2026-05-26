@@ -32,8 +32,4 @@ pub enum TreeErr<T: Coord> {
     },
     #[error("tried to construct tree from to few point ({0}), needs at least 2")]
     InsufficientPoints(usize),
-    #[error("max depth ({0}) reached")]
-    MaxDepthReached(usize),
-    #[error("this should never happen: {0}")]
-    Internal(String),
 }
