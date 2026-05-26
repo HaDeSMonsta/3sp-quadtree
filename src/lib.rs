@@ -17,6 +17,7 @@ mod pip;
 mod range;
 pub mod tree;
 
+pub use err::*;
 pub use geometry::{Point, Rect};
 pub use pip::Polygon;
 pub use tree::{DataPoint, QuadTree};
