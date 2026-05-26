@@ -291,19 +291,11 @@ impl<T: Coord> QuadTree<T> {
         ret
     }
 
-    pub fn len(&self) -> usize {
-        self.children
-            .as_ref()
-            .map_or(self.points.len(), |children| {
-                let mut sum = 0;
-                for child in children.iter() {
-                    sum += child.len();
-                }
-                sum
-            })
+    pub const fn len(&self) -> usize {
+        self.point_count
     }
 
-    pub fn is_empty(&self) -> bool {
+    pub const fn is_empty(&self) -> bool {
         self.len() == 0
     }
 
