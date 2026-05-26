@@ -17,7 +17,7 @@ use std::path::Path;
 pub struct QuadTree<T: Coord> {
     pub(crate) area: Rect<T>,
     pub(crate) points: Vec<DataPoint<T>>, // No smallvec, because only top lvl would be on the stack
-    pub(crate) point_count: usize,
+    pub(crate) len: usize,
     pub(crate) level_cap: usize,
     /// 0: upper-left <br/>
     /// 1: upper-right <br/>
@@ -41,7 +41,7 @@ impl<T: Coord> QuadTree<T> {
         Self {
             area,
             points: Vec::with_capacity(level_cap),
-            point_count: 0,
+            len: 0,
             level_cap,
             children: None,
             depth: 0,
@@ -130,7 +130,7 @@ impl<T: Coord> QuadTree<T> {
         Self {
             area,
             points: Vec::with_capacity(level_cap),
-            point_count: 0,
+            len: 0,
             level_cap,
             children: None,
             depth,
@@ -155,7 +155,7 @@ impl<T: Coord> QuadTree<T> {
                 || !self.is_subdividable()
             {
                 self.points.push(data_point);
-                self.point_count += 1;
+                self.len += 1;
                 return Ok(());
             }
 
@@ -171,7 +171,7 @@ impl<T: Coord> QuadTree<T> {
         };
 
         child[idx].insert(data_point)?;
-        self.point_count += 1;
+        self.len += 1;
 
         Ok(())
     }
@@ -179,13 +179,13 @@ impl<T: Coord> QuadTree<T> {
     pub fn remove(&mut self, id: usize) -> Option<DataPoint<T>> {
         let Some(children) = &mut self.children else {
             let idx = self.points.iter().position(|dp| dp.id == id)?;
-            self.point_count -= 1;
+            self.len -= 1;
             return Some(self.points.swap_remove(idx));
         };
 
         for child in children.iter_mut() {
             if let Some(removed) = child.remove(id) {
-                self.point_count -= 1;
+                self.len -= 1;
                 self.rebalance();
                 return Some(removed);
             }
@@ -196,7 +196,7 @@ impl<T: Coord> QuadTree<T> {
 
     // Only looks children at current level -> After finding point, rebalance up and after last return one last time
     fn rebalance(&mut self) {
-        if self.point_count > self.level_cap {
+        if self.len > self.level_cap {
             return;
         }
         let Some(children) = &mut self.children else {
@@ -292,7 +292,7 @@ impl<T: Coord> QuadTree<T> {
     }
 
     pub const fn len(&self) -> usize {
-        self.point_count
+        self.len
     }
 
     pub const fn is_empty(&self) -> bool {
