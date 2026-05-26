@@ -28,10 +28,12 @@ pub struct QuadTree<T: Coord> {
     pub(crate) max_depth: usize,
 }
 
+// Pub because while we own we don't give out mutable references, and when the user owns it
+// he can do as he pleases
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct DataPoint<T: Coord> {
-    pub(crate) id: usize,
-    pub(crate) point: Point<T>,
+    pub id: usize,
+    pub point: Point<T>,
 }
 
 impl<T: Coord> QuadTree<T> {

@@ -55,14 +55,14 @@ where
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Point<T: Coord> {
-    pub(crate) x: T,
-    pub(crate) y: T,
+    pub x: T,
+    pub y: T,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Rect<T: Coord> {
-    pub(crate) lower: Point<T>,
-    pub(crate) upper: Point<T>,
+    pub lower: Point<T>,
+    pub upper: Point<T>,
 }
 
 impl<T: Coord> Point<T> {
