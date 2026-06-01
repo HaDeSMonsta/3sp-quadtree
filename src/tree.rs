@@ -65,7 +65,11 @@ impl<T: Coord> QuadTree<T> {
         Ok(Self::new(rect, level_cap, max_depth))
     }
 
-    pub fn from_points(points: &[DataPoint<T>]) -> Result<Self> {
+    pub fn from_points(
+        points: &[DataPoint<T>],
+        level_cap: usize,
+        max_depth: usize,
+    ) -> Result<Self> {
         let len = points.len();
         if len < 2 {
             bail!(TreeErr::InsufficientPoints::<T>(len));
@@ -93,7 +97,7 @@ impl<T: Coord> QuadTree<T> {
             }
         }
 
-        let mut tree = Self::from_coords(min_x, min_y, max_x, max_y, 100, 100)
+        let mut tree = Self::from_coords(min_x, min_y, max_x, max_y, level_cap, max_depth)
             .context("failed to construct tree from min/max coords")?;
 
         for dp in points {

@@ -42,8 +42,8 @@ fn main() -> Result<()> {
     let parsing_time = parsing_start.elapsed();
 
     let insert_start = Instant::now();
-    let tree =
-        QuadTree::from_points(&data).context("failed to construct tree from SimRa points")?;
+    let tree = QuadTree::from_points(&data, 100, 100)
+        .context("failed to construct tree from SimRa points")?;
     let insert_time = insert_start.elapsed();
 
     // tree.print_structure();
