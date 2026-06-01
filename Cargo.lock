@@ -354,7 +354,6 @@ dependencies = [
  "num-traits",
  "serde",
  "serde_json",
- "smallvec",
  "thiserror",
  "tracing",
  "tracing-subscriber",
