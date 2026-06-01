@@ -5,31 +5,30 @@ use serde::{Deserialize, Serialize};
 use std::fmt::{Debug, Display};
 use std::ops::{Add, Div, Mul, Sub};
 
-pub trait Coord:
-    Copy
-    + Clone
-    + Debug
-    + Display
-    + PartialEq
-    + PartialOrd
-    + Add<Output = Self>
-    + Sub<Output = Self>
-    + Mul<Output = Self>
-    + Div<Output = Self>
-    + Zero
-    + One
-    + ConstOne
-    + Send
-    + Sync
-    + 'static
-{
-    #[must_use]
-    fn mid(self, other: Self) -> Self;
+macro_rules! impl_coord {
+    ($($bound:tt)+) => {
+        pub trait Coord:
+            $($bound)+
+        {
+            #[must_use]
+            fn mid(self, other: Self) -> Self;
+        }
+
+        impl<T> Coord for T
+        where
+            T: $($bound)+,
+        {
+            #[allow(clippy::suspicious_operation_groupings)] // Self::one() == other::one() == T::one()
+            #[inline] // Should happen automatically, but whatever
+            fn mid(self, other: Self) -> Self {
+                self + ((other - self) / (T::ONE + T::ONE))
+            }
+        }
+    };
 }
 
-impl<T> Coord for T
-where
-    T: Copy
+impl_coord!(
+    Copy
         + Clone
         + Debug
         + Display
@@ -44,14 +43,8 @@ where
         + ConstOne
         + Send
         + Sync
-        + 'static,
-{
-    #[allow(clippy::suspicious_operation_groupings)] // Self::one() == other::one() == T::one()
-    #[inline] // Should happen automatically, but whatever
-    fn mid(self, other: Self) -> Self {
-        self + ((other - self) / (T::ONE + T::ONE))
-    }
-}
+        + 'static
+);
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Point<T: Coord> {
