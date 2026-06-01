@@ -1,6 +1,6 @@
 use crate::err::GeometryErr;
 use color_eyre::Result;
-use num_traits::{ConstOne, One, Zero};
+use num_traits::{One, Zero};
 use serde::{Deserialize, Serialize};
 use std::fmt::{Debug, Display};
 use std::ops::{Add, Div, Mul, Sub};
@@ -21,12 +21,13 @@ macro_rules! impl_coord {
             #[allow(clippy::suspicious_operation_groupings)] // Self::one() == other::one() == T::one()
             #[inline] // Should happen automatically, but whatever
             fn mid(self, other: Self) -> Self {
-                self + ((other - self) / (T::ONE + T::ONE))
+                self + ((other - self) / (T::one() + T::one()))
             }
         }
     };
 }
 
+// The const impl is just inline { 0.0/1.0 }, so no difference to the method traits and the method traits are less restrictive (I guess)
 impl_coord!(
     Copy
         + Clone
@@ -40,7 +41,6 @@ impl_coord!(
         + Div<Output = Self>
         + Zero
         + One
-        + ConstOne
         + Send
         + Sync
         + 'static
