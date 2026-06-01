@@ -53,6 +53,7 @@ pub struct Point<T: Coord> {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[non_exhaustive] // Makes it impossible to construct via Rect { } outside of this crate, so users have to use the new function which checks for validity
 pub struct Rect<T: Coord> {
     pub lower: Point<T>,
     pub upper: Point<T>,
