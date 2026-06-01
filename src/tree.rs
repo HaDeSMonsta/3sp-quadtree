@@ -138,6 +138,33 @@ impl<T: Coord> QuadTree<T> {
         }
     }
 
+    /// Insert Point into the `QuadTree`
+    ///
+    /// # Arguments
+    ///
+    /// * `data_point`: The `DataPoint` to insert into the tree
+    ///
+    /// Note: Point IDs are never checked and duplicated IDs are considered a user-error
+    ///
+    /// returns: `Result<(), TreeErr<T>>`
+    ///
+    /// * `TreeErr::InsertionOutOfBounds`: If the point is not in the area of the tree
+    ///
+    /// # Panics
+    ///
+    /// This should never happen.
+    /// The function panics if it determines it is safe to subdivide, but it actually is not.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use quadtree::{DataPoint, Point, QuadTree};
+    ///
+    /// let mut tree = QuadTree::from_coords(0.0, 0.0, 1.1, 1.1, 10, 10).expect("failed to create valid tree");
+    /// let dp = DataPoint::new(1, Point::new(0.5, 0.5));
+    ///
+    /// tree.insert(dp).expect("failed to insert");
+    /// ```
     pub fn insert(&mut self, data_point: DataPoint<T>) -> Result<(), TreeErr<T>> {
         if !self.area.contains(&data_point.point) {
             return Err(TreeErr::InsertionOutOfBounds {
@@ -164,6 +191,7 @@ impl<T: Coord> QuadTree<T> {
         }
 
         let idx = Self::child_idx_for_point(&self.area, &data_point.point);
+        // no self.children.as_mut().expect() because I want a formatted error
         let Some(child) = &mut self.children else {
             panic!(
                 "child not found after subdivide at depth {}, max_depth={}, idx={idx}",
