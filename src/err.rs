@@ -30,6 +30,6 @@ pub enum TreeErr<T: Coord> {
         rect: Rect<T>,
         data_point: DataPoint<T>,
     },
-    #[error("tried to construct tree from to few point ({0}), needs at least 2")]
+    #[error("tried to construct tree from ({0}) points, needs at least 2")]
     InsufficientPoints(usize),
 }
