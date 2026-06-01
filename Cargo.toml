@@ -33,7 +33,7 @@ tracing-subscriber = { workspace = true }
 [build-dependencies]
 clap = { workspace = true }
 clap_complete = { workspace = true }
-color-eyre = "0.6.5"
+color-eyre = { workspace = true }
 
 [target.'cfg(target_env = "musl")'.dependencies]
 mimalloc = { workspace = true }
