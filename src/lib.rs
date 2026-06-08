@@ -13,6 +13,7 @@
 mod err;
 pub mod geometry;
 mod knn;
+pub mod oct_tree;
 mod pip;
 pub mod quad_tree;
 mod range;

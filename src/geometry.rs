@@ -1,4 +1,4 @@
-use crate::err::GeometryErr;
+use crate::err::{GeometryErr2D, GeometryErr3D};
 use color_eyre::Result;
 use num_traits::{One, Zero};
 use serde::{Deserialize, Serialize};
@@ -53,10 +53,24 @@ pub struct Point2D<T: Coord> {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Point3D<T: Coord> {
+    pub x: T,
+    pub y: T,
+    pub z: T,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[non_exhaustive] // Makes it impossible to construct via Rect { } outside of this crate, so users have to use the new function which checks for validity
 pub struct Rect<T: Coord> {
     pub lower: Point2D<T>,
     pub upper: Point2D<T>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[non_exhaustive]
+pub struct Cuboid<T: Coord> {
+    pub lower: Point3D<T>,
+    pub upper: Point3D<T>,
 }
 
 impl<T: Coord> Point2D<T> {
@@ -89,14 +103,14 @@ impl<T: Coord> Rect<T> {
     ///
     /// let rect = Rect::new(lower, upper).expect("lower was not below upper");
     /// ```
-    pub fn new(lower: Point2D<T>, upper: Point2D<T>) -> Result<Self, GeometryErr<T>> {
+    pub fn new(lower: Point2D<T>, upper: Point2D<T>) -> Result<Self, GeometryErr2D<T>> {
         if lower.x >= upper.x || lower.y >= upper.y {
-            return Err(GeometryErr::IncorrectOrd { lower, upper });
+            return Err(GeometryErr2D::IncorrectOrd { lower, upper });
         }
         Ok(Self { lower, upper })
     }
 
-    pub fn from_coords(low_x: T, low_y: T, high_x: T, high_y: T) -> Result<Self, GeometryErr<T>> {
+    pub fn from_coords(low_x: T, low_y: T, high_x: T, high_y: T) -> Result<Self, GeometryErr2D<T>> {
         let lower = Point2D::new(low_x, low_y);
         let upper = Point2D::new(high_x, high_y);
 
@@ -115,5 +129,52 @@ impl<T: Coord> Rect<T> {
         let center_y = self.lower.y.mid(self.upper.y);
 
         (center_x, center_y)
+    }
+}
+
+impl<T: Coord> Point3D<T> {
+    pub const fn new(x: T, y: T, z: T) -> Self {
+        Self { x, y, z }
+    }
+}
+
+impl<T: Coord> Cuboid<T> {
+    pub fn new(lower: Point3D<T>, upper: Point3D<T>) -> Result<Self, GeometryErr3D<T>> {
+        if lower.x >= upper.x || lower.y >= upper.y || lower.z >= upper.z {
+            return Err(GeometryErr3D::IncorrectOrd { lower, upper });
+        }
+
+        Ok(Self { lower, upper })
+    }
+
+    pub fn from_coords(
+        low_x: T,
+        low_y: T,
+        low_z: T,
+        high_x: T,
+        high_y: T,
+        high_z: T,
+    ) -> Result<Self, GeometryErr3D<T>> {
+        let lower = Point3D::new(low_x, low_y, low_z);
+        let upper = Point3D::new(high_x, high_y, high_z);
+
+        Self::new(lower, upper)
+    }
+
+    pub fn contains(&self, point: &Point3D<T>) -> bool {
+        point.x >= self.lower.x
+            && point.x <= self.upper.x
+            && point.y >= self.lower.y
+            && point.y <= self.upper.y
+            && point.z >= self.lower.z
+            && point.z <= self.upper.z
+    }
+
+    pub(crate) fn get_centers(&self) -> (T, T, T) {
+        let center_x = self.lower.x.mid(self.upper.x);
+        let center_y = self.lower.y.mid(self.upper.y);
+        let center_z = self.lower.z.mid(self.upper.z);
+
+        (center_x, center_y, center_z)
     }
 }

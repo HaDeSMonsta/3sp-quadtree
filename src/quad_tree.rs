@@ -1,4 +1,4 @@
-use crate::err::TreeErr;
+use crate::err::TreeErr2D;
 use crate::geometry::{Coord, Point2D, Rect};
 use color_eyre::Result;
 use color_eyre::eyre::{Context, bail};
@@ -72,10 +72,10 @@ impl<T: Coord> QuadTree<T> {
     ) -> Result<Self> {
         let len = points.len();
         if len < 2 {
-            bail!(TreeErr::InsufficientPoints::<T>(len));
+            bail!(TreeErr2D::InsufficientPoints::<T>(len));
         }
 
-        let first = &points[1];
+        let first = &points[0];
 
         let (mut min_x, mut min_y) = first.coords();
         let (mut max_x, mut max_y) = first.coords();
@@ -108,7 +108,7 @@ impl<T: Coord> QuadTree<T> {
         Ok(tree)
     }
 
-    pub fn from_file<P: AsRef<Path> + Debug>(path: P) -> Result<Self>
+    pub fn from_file<P: AsRef<Path>>(path: P) -> Result<Self>
     where
         T: DeserializeOwned,
     {
@@ -169,9 +169,9 @@ impl<T: Coord> QuadTree<T> {
     ///
     /// tree.insert(dp).expect("failed to insert");
     /// ```
-    pub fn insert(&mut self, data_point: DataPoint2D<T>) -> Result<(), TreeErr<T>> {
+    pub fn insert(&mut self, data_point: DataPoint2D<T>) -> Result<(), TreeErr2D<T>> {
         if !self.area.contains(&data_point.point) {
-            return Err(TreeErr::InsertionOutOfBounds {
+            return Err(TreeErr2D::InsertionOutOfBounds {
                 rect: self.area.clone(),
                 data_point,
             });
@@ -238,7 +238,7 @@ impl<T: Coord> QuadTree<T> {
 
         let mut points = Vec::with_capacity(self.level_cap);
 
-        for child in children.as_mut() {
+        for child in children.iter_mut() {
             child.drain_points(&mut points);
         }
 
