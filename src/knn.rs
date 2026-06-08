@@ -1,12 +1,12 @@
-use crate::geometry::{Coord, Point, Rect};
-use crate::tree::{DataPoint, QuadTree};
+use crate::geometry::{Coord, Point2D, Rect};
+use crate::quad_tree::{DataPoint2D, QuadTree};
 use std::cmp::Ordering;
 use std::collections::BinaryHeap;
 
 #[derive(Clone, Copy, Debug)]
 struct BestNeighbour<'a, T: Coord> {
     dist2: T,
-    data_point: &'a DataPoint<T>,
+    data_point: &'a DataPoint2D<T>,
 }
 
 impl<T: Coord> PartialEq for BestNeighbour<'_, T> {
@@ -62,12 +62,12 @@ impl<T: Coord> Ord for CandidateNode<'_, T> {
 }
 
 impl<T: Coord> QuadTree<T> {
-    pub fn nn(&self, query: &Point<T>) -> Option<&DataPoint<T>> {
+    pub fn nn(&self, query: &Point2D<T>) -> Option<&DataPoint2D<T>> {
         self.knn(query, 1).pop()
     }
 
     // Thoughts: Point because it doesn't have to be included
-    pub fn knn(&self, query: &Point<T>, k: usize) -> Vec<&DataPoint<T>> {
+    pub fn knn(&self, query: &Point2D<T>, k: usize) -> Vec<&DataPoint2D<T>> {
         if k == 0 {
             return Vec::new();
         }
@@ -132,7 +132,7 @@ impl<T: Coord> QuadTree<T> {
 }
 
 #[inline]
-fn dist2_point_point<T: Coord>(a: &Point<T>, b: &Point<T>) -> T {
+fn dist2_point_point<T: Coord>(a: &Point2D<T>, b: &Point2D<T>) -> T {
     let dx = if a.x >= b.x { a.x - b.x } else { b.x - a.x };
     let dy = if a.y >= b.y { a.y - b.y } else { b.y - a.y };
 
@@ -140,7 +140,7 @@ fn dist2_point_point<T: Coord>(a: &Point<T>, b: &Point<T>) -> T {
 }
 
 #[inline]
-fn dist2_point_rect<T: Coord>(point: &Point<T>, rect: &Rect<T>) -> T {
+fn dist2_point_rect<T: Coord>(point: &Point2D<T>, rect: &Rect<T>) -> T {
     let dx = if point.x < rect.lower.x {
         rect.lower.x - point.x
     } else if point.x > rect.upper.x {
@@ -162,19 +162,19 @@ fn dist2_point_rect<T: Coord>(point: &Point<T>, rect: &Rect<T>) -> T {
 
 #[cfg(test)]
 mod tests {
-    use crate::geometry::Point;
-    use crate::tree::{DataPoint, QuadTree};
+    use crate::geometry::Point2D;
+    use crate::quad_tree::{DataPoint2D, QuadTree};
 
     fn make_tree() -> QuadTree<f64> {
         QuadTree::from_coords(0.0, 0.0, 100.0, 100.0, 4, 10).unwrap()
     }
 
     fn insert(tree: &mut QuadTree<f64>, id: usize, x: f64, y: f64) {
-        tree.insert(DataPoint::new_coords(id, x, y)).unwrap();
+        tree.insert(DataPoint2D::new_coords(id, x, y)).unwrap();
     }
 
-    fn query(x: f64, y: f64) -> Point<f64> {
-        Point::new(x, y)
+    fn query(x: f64, y: f64) -> Point2D<f64> {
+        Point2D::new(x, y)
     }
 
     // --- Basic correctness ---
@@ -265,7 +265,7 @@ mod tests {
 
     // --- Larger dataset for cross-checking with brute force ---
 
-    fn brute_force_knn(points: &[DataPoint<f64>], query: &Point<f64>, k: usize) -> Vec<usize> {
+    fn brute_force_knn(points: &[DataPoint2D<f64>], query: &Point2D<f64>, k: usize) -> Vec<usize> {
         let mut with_dist: Vec<(usize, f64)> = points
             .iter()
             .map(|dp| {
@@ -291,7 +291,7 @@ mod tests {
                 let x = (i as f64).mul_add(9.0, 1.0);
                 let y = (j as f64).mul_add(9.0, 1.0);
                 insert(&mut tree, id, x, y);
-                all_points.push(DataPoint::new_coords(id, x, y));
+                all_points.push(DataPoint2D::new_coords(id, x, y));
             }
         }
 
@@ -316,7 +316,7 @@ mod tests {
                 let x = (i as f64).mul_add(12.0, 2.0);
                 let y = (j as f64).mul_add(12.0, 2.0);
                 insert(&mut tree, id, x, y);
-                all_points.push(DataPoint::new_coords(id, x, y));
+                all_points.push(DataPoint2D::new_coords(id, x, y));
             }
         }
 
@@ -334,11 +334,11 @@ mod tests {
     #[test]
     fn knn_integer_coords() {
         let mut tree = QuadTree::from_coords(0, 0, 100, 100, 4, 10).unwrap();
-        tree.insert(DataPoint::new_coords(0, 10, 10)).unwrap();
-        tree.insert(DataPoint::new_coords(1, 20, 20)).unwrap();
-        tree.insert(DataPoint::new_coords(2, 90, 90)).unwrap();
+        tree.insert(DataPoint2D::new_coords(0, 10, 10)).unwrap();
+        tree.insert(DataPoint2D::new_coords(1, 20, 20)).unwrap();
+        tree.insert(DataPoint2D::new_coords(2, 90, 90)).unwrap();
 
-        let result = tree.knn(&Point::new(12, 12), 2);
+        let result = tree.knn(&Point2D::new(12, 12), 2);
 
         assert_eq!(result.len(), 2);
         assert_eq!(result[0].id(), 0);

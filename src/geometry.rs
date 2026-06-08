@@ -47,7 +47,7 @@ impl_coord!(
 );
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-pub struct Point<T: Coord> {
+pub struct Point2D<T: Coord> {
     pub x: T,
     pub y: T,
 }
@@ -55,11 +55,11 @@ pub struct Point<T: Coord> {
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[non_exhaustive] // Makes it impossible to construct via Rect { } outside of this crate, so users have to use the new function which checks for validity
 pub struct Rect<T: Coord> {
-    pub lower: Point<T>,
-    pub upper: Point<T>,
+    pub lower: Point2D<T>,
+    pub upper: Point2D<T>,
 }
 
-impl<T: Coord> Point<T> {
+impl<T: Coord> Point2D<T> {
     pub const fn new(x: T, y: T) -> Self {
         Self { x, y }
     }
@@ -82,14 +82,14 @@ impl<T: Coord> Rect<T> {
     /// # Examples
     ///
     /// ```
-    /// use quadtree::geometry::{Point, Rect};
+    /// use quadtree::geometry::{Point2D, Rect};
     ///
-    /// let lower = Point::new(0, 0);
-    /// let upper = Point::new(1, 1);
+    /// let lower = Point2D::new(0, 0);
+    /// let upper = Point2D::new(1, 1);
     ///
     /// let rect = Rect::new(lower, upper).expect("lower was not below upper");
     /// ```
-    pub fn new(lower: Point<T>, upper: Point<T>) -> Result<Self, GeometryErr<T>> {
+    pub fn new(lower: Point2D<T>, upper: Point2D<T>) -> Result<Self, GeometryErr<T>> {
         if lower.x >= upper.x || lower.y >= upper.y {
             return Err(GeometryErr::IncorrectOrd { lower, upper });
         }
@@ -97,13 +97,13 @@ impl<T: Coord> Rect<T> {
     }
 
     pub fn from_coords(low_x: T, low_y: T, high_x: T, high_y: T) -> Result<Self, GeometryErr<T>> {
-        let lower = Point::new(low_x, low_y);
-        let upper = Point::new(high_x, high_y);
+        let lower = Point2D::new(low_x, low_y);
+        let upper = Point2D::new(high_x, high_y);
 
         Self::new(lower, upper)
     }
 
-    pub fn contains(&self, point: &Point<T>) -> bool {
+    pub fn contains(&self, point: &Point2D<T>) -> bool {
         point.x >= self.lower.x
             && point.x <= self.upper.x
             && point.y >= self.lower.y

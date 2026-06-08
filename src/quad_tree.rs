@@ -1,5 +1,5 @@
 use crate::err::TreeErr;
-use crate::geometry::{Coord, Point, Rect};
+use crate::geometry::{Coord, Point2D, Rect};
 use color_eyre::Result;
 use color_eyre::eyre::{Context, bail};
 use serde::de::DeserializeOwned;
@@ -16,7 +16,7 @@ use std::path::Path;
 #[allow(clippy::unsafe_derive_deserialize)] // The unsafe is in knn, doesn't matter here
 pub struct QuadTree<T: Coord> {
     pub(crate) area: Rect<T>,
-    pub(crate) points: Vec<DataPoint<T>>, // No smallvec, because only top lvl would be on the stack
+    pub(crate) points: Vec<DataPoint2D<T>>, // No smallvec, because only top lvl would be on the stack
     pub(crate) len: usize,
     pub(crate) level_cap: usize,
     /// 0: upper-left <br/>
@@ -31,9 +31,9 @@ pub struct QuadTree<T: Coord> {
 // Pub because while we own we don't give out mutable references, and when the user owns it
 // he can do as he pleases
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-pub struct DataPoint<T: Coord> {
+pub struct DataPoint2D<T: Coord> {
     pub id: usize,
-    pub point: Point<T>,
+    pub point: Point2D<T>,
 }
 
 impl<T: Coord> QuadTree<T> {
@@ -57,8 +57,8 @@ impl<T: Coord> QuadTree<T> {
         level_cap: usize,
         max_depth: usize,
     ) -> Result<Self> {
-        let point_lower = Point::new(lower_x, lower_y);
-        let point_upper = Point::new(upper_x, upper_y);
+        let point_lower = Point2D::new(lower_x, lower_y);
+        let point_upper = Point2D::new(upper_x, upper_y);
         let rect = Rect::new(point_lower, point_upper)
             .context("failed to create tree due to invalid rect")?;
 
@@ -66,7 +66,7 @@ impl<T: Coord> QuadTree<T> {
     }
 
     pub fn from_points(
-        points: &[DataPoint<T>],
+        points: &[DataPoint2D<T>],
         level_cap: usize,
         max_depth: usize,
     ) -> Result<Self> {
@@ -162,14 +162,14 @@ impl<T: Coord> QuadTree<T> {
     /// # Examples
     ///
     /// ```
-    /// use quadtree::{DataPoint, Point, QuadTree};
+    /// use quadtree::{DataPoint2D, Point2D, QuadTree};
     ///
     /// let mut tree = QuadTree::from_coords(0.0, 0.0, 1.1, 1.1, 10, 10).expect("failed to create valid tree");
-    /// let dp = DataPoint::new(1, Point::new(0.5, 0.5));
+    /// let dp = DataPoint2D::new(1, Point2D::new(0.5, 0.5));
     ///
     /// tree.insert(dp).expect("failed to insert");
     /// ```
-    pub fn insert(&mut self, data_point: DataPoint<T>) -> Result<(), TreeErr<T>> {
+    pub fn insert(&mut self, data_point: DataPoint2D<T>) -> Result<(), TreeErr<T>> {
         if !self.area.contains(&data_point.point) {
             return Err(TreeErr::InsertionOutOfBounds {
                 rect: self.area.clone(),
@@ -209,7 +209,7 @@ impl<T: Coord> QuadTree<T> {
         Ok(())
     }
 
-    pub fn remove(&mut self, id: usize) -> Option<DataPoint<T>> {
+    pub fn remove(&mut self, id: usize) -> Option<DataPoint2D<T>> {
         let Some(children) = &mut self.children else {
             let idx = self.points.iter().position(|dp| dp.id == id)?;
             self.len -= 1;
@@ -246,7 +246,7 @@ impl<T: Coord> QuadTree<T> {
         self.children = None;
     }
 
-    fn drain_points(&mut self, out: &mut Vec<DataPoint<T>>) {
+    fn drain_points(&mut self, out: &mut Vec<DataPoint2D<T>>) {
         if let Some(children) = &mut self.children {
             for child in children.iter_mut() {
                 child.drain_points(out); // Not even sure this is ever called, remove calls on every level, no?
@@ -310,7 +310,7 @@ impl<T: Coord> QuadTree<T> {
     }
 
     #[allow(clippy::similar_names)]
-    fn child_idx_for_point(rect: &Rect<T>, point: &Point<T>) -> usize {
+    fn child_idx_for_point(rect: &Rect<T>, point: &Point2D<T>) -> usize {
         let (cx, cy) = rect.get_centers();
 
         let mut ret = 0;
@@ -377,7 +377,7 @@ impl<T: Coord> QuadTree<T> {
     }
 
     // Use this if you care about the id
-    pub fn contains_dp(&self, data_point: &DataPoint<T>) -> bool {
+    pub fn contains_dp(&self, data_point: &DataPoint2D<T>) -> bool {
         self.children.as_ref().map_or_else(
             || self.points.iter().any(|dp| dp == data_point),
             |children| {
@@ -388,7 +388,7 @@ impl<T: Coord> QuadTree<T> {
     }
 
     // Use this if you only care about the coords
-    pub fn contains_p(&self, point: &Point<T>) -> bool {
+    pub fn contains_p(&self, point: &Point2D<T>) -> bool {
         self.children.as_ref().map_or_else(
             || self.points.iter().any(|dp| dp.point == *point),
             |children| {
@@ -399,13 +399,13 @@ impl<T: Coord> QuadTree<T> {
     }
 }
 
-impl<T: Coord> DataPoint<T> {
-    pub const fn new(id: usize, point: Point<T>) -> Self {
+impl<T: Coord> DataPoint2D<T> {
+    pub const fn new(id: usize, point: Point2D<T>) -> Self {
         Self { id, point }
     }
 
     pub const fn new_coords(id: usize, x: T, y: T) -> Self {
-        let point = Point::new(x, y);
+        let point = Point2D::new(x, y);
         Self::new(id, point)
     }
 
@@ -413,7 +413,7 @@ impl<T: Coord> DataPoint<T> {
         self.id
     }
 
-    pub const fn point(&self) -> &Point<T> {
+    pub const fn point(&self) -> &Point2D<T> {
         &self.point
     }
 

@@ -1,14 +1,14 @@
 use crate::geometry::{Coord, Rect};
-use crate::tree::{DataPoint, QuadTree};
+use crate::quad_tree::{DataPoint2D, QuadTree};
 
 impl<T: Coord> QuadTree<T> {
-    pub fn range(&self, query: &Rect<T>) -> Vec<&DataPoint<T>> {
+    pub fn range(&self, query: &Rect<T>) -> Vec<&DataPoint2D<T>> {
         let mut result = Vec::new();
         self.range_inner(query, &mut result);
         result
     }
 
-    fn range_inner<'a>(&'a self, query: &Rect<T>, result: &mut Vec<&'a DataPoint<T>>) {
+    fn range_inner<'a>(&'a self, query: &Rect<T>, result: &mut Vec<&'a DataPoint2D<T>>) {
         if !rects_intersect(&self.area, query) {
             return;
         }
@@ -40,18 +40,22 @@ fn rects_intersect<T: Coord>(a: &Rect<T>, b: &Rect<T>) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::geometry::{Point, Rect};
+    use crate::geometry::{Point2D, Rect};
 
     fn make_tree() -> QuadTree<f64> {
         QuadTree::from_coords(0.0, 0.0, 100.0, 100.0, 4, 10).unwrap()
     }
 
     fn insert(tree: &mut QuadTree<f64>, id: usize, x: f64, y: f64) {
-        tree.insert(DataPoint::new_coords(id, x, y)).unwrap();
+        tree.insert(DataPoint2D::new_coords(id, x, y)).unwrap();
     }
 
     fn rect(lower_x: f64, lower_y: f64, upper_x: f64, upper_y: f64) -> Rect<f64> {
-        Rect::new(Point::new(lower_x, lower_y), Point::new(upper_x, upper_y)).unwrap()
+        Rect::new(
+            Point2D::new(lower_x, lower_y),
+            Point2D::new(upper_x, upper_y),
+        )
+        .unwrap()
     }
 
     #[test]
@@ -116,11 +120,11 @@ mod tests {
     #[test]
     fn range_integer_coords() {
         let mut tree = QuadTree::from_coords(0, 0, 100, 100, 4, 10).unwrap();
-        tree.insert(DataPoint::new_coords(0, 10, 10)).unwrap();
-        tree.insert(DataPoint::new_coords(1, 20, 20)).unwrap();
-        tree.insert(DataPoint::new_coords(2, 90, 90)).unwrap();
+        tree.insert(DataPoint2D::new_coords(0, 10, 10)).unwrap();
+        tree.insert(DataPoint2D::new_coords(1, 20, 20)).unwrap();
+        tree.insert(DataPoint2D::new_coords(2, 90, 90)).unwrap();
 
-        let query = Rect::new(Point::new(0, 0), Point::new(25, 25)).unwrap();
+        let query = Rect::new(Point2D::new(0, 0), Point2D::new(25, 25)).unwrap();
         let result = tree.range(&query);
         let ids: Vec<usize> = result.iter().map(|dp| dp.id).collect();
 

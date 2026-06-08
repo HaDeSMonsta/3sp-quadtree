@@ -14,8 +14,8 @@ use crate::bin_assets::simra;
 use clap::{CommandFactory, Parser};
 use color_eyre::Result;
 use color_eyre::eyre::Context;
-use quadtree::geometry::Point;
-use quadtree::tree::QuadTree;
+use quadtree::geometry::Point2D;
+use quadtree::quad_tree::QuadTree;
 use std::io;
 use std::process::exit;
 use std::time::Instant;
@@ -61,7 +61,7 @@ fn main() -> Result<()> {
     info!(?save_time, ?load_time);
 
     let knn_start = Instant::now();
-    let _knn = tree.knn(&Point::new(52.549_061_28, 13.420_942_66), 3);
+    let _knn = tree.knn(&Point2D::new(52.549_061_28, 13.420_942_66), 3);
     let knn_time = knn_start.elapsed();
     info!(?knn_time);
     // info!(?knn);

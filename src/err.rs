@@ -1,5 +1,5 @@
-use crate::geometry::{Coord, Point, Rect};
-use crate::tree::DataPoint;
+use crate::geometry::{Coord, Point2D, Rect};
+use crate::quad_tree::DataPoint2D;
 use thiserror::Error;
 
 #[derive(Debug, Error)]
@@ -11,7 +11,10 @@ pub enum GeometryErr<T: Coord> {
         upper_x = upper.x,
         upper_y = upper.y,
     )]
-    IncorrectOrd { lower: Point<T>, upper: Point<T> },
+    IncorrectOrd {
+        lower: Point2D<T>,
+        upper: Point2D<T>,
+    },
 }
 
 #[derive(Debug, Error)]
@@ -28,7 +31,7 @@ pub enum TreeErr<T: Coord> {
     )]
     InsertionOutOfBounds {
         rect: Rect<T>,
-        data_point: DataPoint<T>,
+        data_point: DataPoint2D<T>,
     },
     #[error("tried to construct tree from ({0}) points, needs at least 2")]
     InsufficientPoints(usize),

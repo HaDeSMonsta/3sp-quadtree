@@ -1,12 +1,12 @@
 use color_eyre::Result;
 use color_eyre::eyre::{Context, ContextCompat};
-use quadtree::tree::DataPoint;
+use quadtree::quad_tree::DataPoint2D;
 use std::fmt::Debug;
 use std::fs;
 use std::io::{BufRead, BufReader};
 use std::path::Path;
 
-pub fn parse<P: AsRef<Path> + Debug>(path: P) -> Result<Vec<DataPoint<f64>>> {
+pub fn parse<P: AsRef<Path> + Debug>(path: P) -> Result<Vec<DataPoint2D<f64>>> {
     let mut id_cnt = 0;
     if path.as_ref().is_dir() {
         parse_dir(&path, &mut id_cnt).with_context(|| format!("failed to parse dir: {path:?}"))
@@ -15,7 +15,7 @@ pub fn parse<P: AsRef<Path> + Debug>(path: P) -> Result<Vec<DataPoint<f64>>> {
     }
 }
 
-fn parse_dir<P: AsRef<Path>>(path: P, mut id_cnt: &mut usize) -> Result<Vec<DataPoint<f64>>> {
+fn parse_dir<P: AsRef<Path>>(path: P, mut id_cnt: &mut usize) -> Result<Vec<DataPoint2D<f64>>> {
     let mut data = vec![];
     let dir = fs::read_dir(path).context("failed to read dir")?;
 
@@ -34,7 +34,10 @@ fn parse_dir<P: AsRef<Path>>(path: P, mut id_cnt: &mut usize) -> Result<Vec<Data
     Ok(data)
 }
 
-fn parse_file<P: AsRef<Path> + Debug>(path: P, id_cnt: &mut usize) -> Result<Vec<DataPoint<f64>>> {
+fn parse_file<P: AsRef<Path> + Debug>(
+    path: P,
+    id_cnt: &mut usize,
+) -> Result<Vec<DataPoint2D<f64>>> {
     let lines = read(&path)?;
 
     let idx = lines
@@ -55,7 +58,7 @@ fn parse_file<P: AsRef<Path> + Debug>(path: P, id_cnt: &mut usize) -> Result<Vec
 
             let id = *id_cnt;
             *id_cnt += 1;
-            let dp = DataPoint::new_coords(id, x, y);
+            let dp = DataPoint2D::new_coords(id, x, y);
 
             Some(dp)
         })

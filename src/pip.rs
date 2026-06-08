@@ -1,12 +1,12 @@
-use crate::geometry::{Coord, Point};
-use crate::tree::QuadTree;
+use crate::geometry::{Coord, Point2D};
+use crate::quad_tree::QuadTree;
 use color_eyre::eyre::Result;
 use color_eyre::eyre::bail;
 
 // Currently stays here if used for more than PiP -> Move to geometry
 #[derive(Clone, Debug)]
 pub struct Polygon<T: Coord> {
-    vertices: Vec<Point<T>>,
+    vertices: Vec<Point2D<T>>,
     min_x: T,
     min_y: T,
     max_x: T,
@@ -14,7 +14,7 @@ pub struct Polygon<T: Coord> {
 }
 
 impl<T: Coord> Polygon<T> {
-    pub fn new(vertices: Vec<Point<T>>) -> Result<Self> {
+    pub fn new(vertices: Vec<Point2D<T>>) -> Result<Self> {
         if vertices.len() < 3 {
             bail!(
                 "at least three vertices required, {} supplied",
@@ -54,7 +54,7 @@ impl<T: Coord> Polygon<T> {
     }
 
     #[inline]
-    fn contains(&self, point: &Point<T>) -> bool {
+    fn contains(&self, point: &Point2D<T>) -> bool {
         let n = self.vertices.len();
 
         if n < 3
@@ -96,7 +96,7 @@ impl<T: Coord> Polygon<T> {
     }
 
     #[inline]
-    fn point_on_segment(point: &Point<T>, a: &Point<T>, b: &Point<T>) -> bool {
+    fn point_on_segment(point: &Point2D<T>, a: &Point2D<T>, b: &Point2D<T>) -> bool {
         let cross = (b.x - a.x) * (point.y - a.y) - (b.y - a.y) * (point.x - a.x);
 
         cross == T::zero()
@@ -118,7 +118,7 @@ impl<T: Coord> Polygon<T> {
 }
 
 impl<T: Coord> QuadTree<T> {
-    pub fn pip(&self, point: &Point<T>, polygon: &Polygon<T>) -> bool {
+    pub fn pip(&self, point: &Point2D<T>, polygon: &Polygon<T>) -> bool {
         polygon.contains(point)
     }
 }
@@ -126,10 +126,10 @@ impl<T: Coord> QuadTree<T> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::tree::QuadTree;
+    use crate::quad_tree::QuadTree;
 
-    fn p(x: f64, y: f64) -> Point<f64> {
-        Point::new(x, y)
+    fn p(x: f64, y: f64) -> Point2D<f64> {
+        Point2D::new(x, y)
     }
 
     fn square() -> Polygon<f64> {
@@ -302,15 +302,15 @@ mod tests {
     #[test]
     fn pip_integer_coords() {
         let polygon = Polygon::new(vec![
-            Point::new(0, 0),
-            Point::new(10, 0),
-            Point::new(10, 10),
-            Point::new(0, 10),
+            Point2D::new(0, 0),
+            Point2D::new(10, 0),
+            Point2D::new(10, 10),
+            Point2D::new(0, 10),
         ])
         .unwrap();
 
-        assert!(polygon.contains(&Point::new(5, 5)));
-        assert!(polygon.contains(&Point::new(10, 5)));
-        assert!(!polygon.contains(&Point::new(15, 5)));
+        assert!(polygon.contains(&Point2D::new(5, 5)));
+        assert!(polygon.contains(&Point2D::new(10, 5)));
+        assert!(!polygon.contains(&Point2D::new(15, 5)));
     }
 }
