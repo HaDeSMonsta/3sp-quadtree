@@ -13,7 +13,6 @@ pub struct OctTree<T: Coord> {
     pub(crate) root: OctNode<T>,
     pub(crate) level_cap: usize,
     pub(crate) max_depth: usize,
-    pub(crate) scaling: T,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -40,12 +39,11 @@ pub struct DataPoint3D<T: Coord> {
 }
 
 impl<T: Coord> OctTree<T> {
-    pub fn new(area: Cuboid<T>, level_cap: usize, max_depth: usize, scaling: T) -> Self {
+    pub fn new(area: Cuboid<T>, level_cap: usize, max_depth: usize) -> Self {
         Self {
             root: OctNode::new(area, level_cap),
             level_cap,
             max_depth,
-            scaling,
         }
     }
 
@@ -59,21 +57,19 @@ impl<T: Coord> OctTree<T> {
         upper_z: T,
         level_cap: usize,
         max_depth: usize,
-        scaling: T,
     ) -> Result<Self> {
         let point_lower = Point3D::new(lower_x, lower_y, lower_z);
         let point_upper = Point3D::new(upper_x, upper_y, upper_z);
         let cube = Cuboid::new(point_lower, point_upper)
             .context("failed to create tree due to invalid rect")?;
 
-        Ok(Self::new(cube, level_cap, max_depth, scaling))
+        Ok(Self::new(cube, level_cap, max_depth))
     }
 
     pub fn from_points(
         points: &[DataPoint3D<T>],
         level_cap: usize,
         max_depth: usize,
-        scaling: T,
     ) -> Result<Self> {
         let len = points.len();
         if len < 2 {
@@ -111,7 +107,7 @@ impl<T: Coord> OctTree<T> {
         }
 
         let mut tree = Self::from_coords(
-            min_x, min_y, min_z, max_x, max_y, max_z, level_cap, max_depth, scaling,
+            min_x, min_y, min_z, max_x, max_y, max_z, level_cap, max_depth,
         )
         .context("failed to construct tree from min/max coords")?;
 
