@@ -10,6 +10,23 @@
     clippy::missing_errors_doc // TODO Remove and document
 )]
 
+macro_rules! diff {
+    ($x:expr, $y:expr) => {
+        if $x >= $y { $x - $y } else { $y - $x }
+    };
+}
+macro_rules! axis_dist {
+    ($p:expr, $lo:expr, $hi:expr) => {
+        if $p < $lo {
+            $lo - $p
+        } else if $p > $hi {
+            $p - $hi
+        } else {
+            T::zero()
+        }
+    };
+}
+
 mod err;
 pub mod geometry;
 pub mod oct;

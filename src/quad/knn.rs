@@ -133,29 +133,16 @@ impl<T: Coord> QuadTree<T> {
 
 #[inline]
 fn dist2_point_point<T: Coord>(a: &Point2D<T>, b: &Point2D<T>) -> T {
-    let dx = if a.x >= b.x { a.x - b.x } else { b.x - a.x };
-    let dy = if a.y >= b.y { a.y - b.y } else { b.y - a.y };
+    let dx = diff!(a.x, b.x);
+    let dy = diff!(a.y, b.y);
 
     dx * dx + dy * dy
 }
 
 #[inline]
 fn dist2_point_rect<T: Coord>(point: &Point2D<T>, rect: &Rect<T>) -> T {
-    let dx = if point.x < rect.lower.x {
-        rect.lower.x - point.x
-    } else if point.x > rect.upper.x {
-        point.x - rect.upper.x
-    } else {
-        T::zero()
-    };
-
-    let dy = if point.y < rect.lower.y {
-        rect.lower.y - point.y
-    } else if point.y > rect.upper.y {
-        point.y - rect.upper.y
-    } else {
-        T::zero()
-    };
+    let dx = axis_dist!(point.x, rect.lower.x, rect.upper.x);
+    let dy = axis_dist!(point.y, rect.lower.y, rect.upper.y);
 
     dx * dx + dy * dy
 }

@@ -9,6 +9,7 @@ use std::fs;
 use std::path::Path;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
+#[allow(clippy::unsafe_derive_deserialize)] // The unsafe is in knn, doesn't matter here
 pub struct OctTree<T: Coord> {
     pub(crate) root: OctNode<T>,
     pub(crate) level_cap: usize,
