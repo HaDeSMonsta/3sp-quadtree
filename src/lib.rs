@@ -12,13 +12,11 @@
 
 mod err;
 pub mod geometry;
-mod knn;
+pub mod oct;
 pub mod oct_tree;
-mod pip;
+pub mod quad;
 pub mod quad_tree;
-mod range;
 
 pub use err::*;
 pub use geometry::{Point2D, Rect};
-pub use pip::Polygon;
 pub use quad_tree::{DataPoint2D, QuadTree};
