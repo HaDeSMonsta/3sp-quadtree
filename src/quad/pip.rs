@@ -54,7 +54,7 @@ impl<T: Coord> Polygon<T> {
     }
 
     #[inline]
-    fn contains(&self, point: &Point2D<T>) -> bool {
+    pub(crate) fn contains(&self, point: &Point2D<T>) -> bool {
         let n = self.vertices.len();
 
         if n < 3
