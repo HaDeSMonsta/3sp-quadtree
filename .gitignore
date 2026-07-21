@@ -1,5 +1,6 @@
 /.idea/
 /completions/
 /target/
+/dwd-geotiff-epsg4326/
 /simra/
 /tree.json

@@ -14,11 +14,13 @@ use crate::bin_assets::simra;
 use clap::{CommandFactory, Parser};
 use color_eyre::Result;
 use color_eyre::eyre::Context;
+use geotiff::GeoTiff;
 use quadtree::geometry::Point2D;
 use quadtree::quad_tree::QuadTree;
-use std::io;
+use std::fs::{self, File};
 use std::process::exit;
 use std::time::Instant;
+use std::{io, thread};
 use tracing::{info, subscriber};
 use tracing_subscriber::FmtSubscriber;
 
@@ -31,11 +33,46 @@ static GLOBAL: mimalloc::MiMalloc = mimalloc::MiMalloc;
 const BIN_NAME: &str = env!("CARGO_PKG_NAME");
 const BIN_VERSION: &str = env!("CARGO_PKG_VERSION");
 
+#[allow(unreachable_code)]
 fn main() -> Result<()> {
     // At some point it will probably hold a query
     let _args = setup().context("setup failed")?;
 
     info!("{BIN_NAME} - {BIN_VERSION}");
+
+    let tif_start = Instant::now();
+
+    let (tx, rx) = std::sync::mpsc::channel();
+
+    let handle = thread::spawn(move || {
+        let mut n = 0u32;
+        while let Ok(tif) = rx.recv() {
+            if n != 0 {
+                println!("\n{}\n", "-".repeat(150));
+            }
+            n += 1;
+            info!("{n:0>6}:");
+            dbg!(&tif);
+        }
+    });
+
+    for entry in fs::read_dir("dwd-geotiff-epsg4326/").context("failed to read dir")? {
+        let path = entry.context("failed to read entry")?.path();
+        if !path.is_file() || path.extension().is_none_or(|e| e != "tif") {
+            continue;
+        }
+
+        let file =
+            File::open(path.as_path()).with_context(|| format!("failed to open {path:?}"))?;
+        let tiff = GeoTiff::read(file)
+            .with_context(|| format!("failed to read tiff data from {path:?}"))?;
+        tx.send(tiff).expect("failed to send tif");
+    }
+    drop(tx);
+    handle.join().expect("failed to join thread");
+    let tif_elapsed = tif_start.elapsed();
+    println!("parsing took: {tif_elapsed:?}");
+    std::process::exit(0);
 
     let parsing_start = Instant::now();
     let data = simra::parse("simra").context("failed to parse simra data")?;
