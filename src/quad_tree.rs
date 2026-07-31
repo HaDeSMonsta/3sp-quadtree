@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
 use std::fs;
 use std::path::Path;
-
+use tracing::{debug, trace};
 // Some thoughts:
 // Duplicate coordinates are allowed (might be different events or whatever)
 // Duplicate IDs are also allowed, that's the users' problem, we assume there are none
@@ -30,7 +30,7 @@ pub struct QuadTree<T: Coord> {
 
 // Pub because while we own we don't give out mutable references, and when the user owns it
 // he can do as he pleases
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct DataPoint2D<T: Coord> {
     pub id: usize,
     pub point: Point2D<T>,
@@ -100,13 +100,25 @@ impl<T: Coord> QuadTree<T> {
         let mut tree = Self::from_coords(min_x, min_y, max_x, max_y, level_cap, max_depth)
             .context("failed to construct tree from min/max coords")?;
 
-        for dp in points {
-            tree.insert(dp.clone())
+        debug!("inserting");
+        let total = points.len();
+
+        for (idx, dp) in points.iter().enumerate() {
+            tree.insert(*dp)
                 .with_context(|| format!("failed to insert {dp:?}"))?; // Is this even possible?
+            let cnt = idx + 1;
+            let pct = cnt * 100 / total;
+            let prev_pct = idx * 100 / total;
+            let n = idx % 10;
+            if pct != prev_pct {
+                trace!("inserted {cnt}/{} elements ({pct}%)", points.len());
+            }
         }
 
         Ok(tree)
     }
+
+    // pub fn from_points_vec()
 
     pub fn from_file<P: AsRef<Path>>(path: P) -> Result<Self>
     where
@@ -396,6 +408,46 @@ impl<T: Coord> QuadTree<T> {
                 children[idx].contains_p(&point)
             },
         )
+    }
+}
+
+impl QuadTree<f64> {
+    /// Build a `QuadTree<f64>` from the pixel centers of a `GeoTIFF`.
+    ///
+    /// See [`crate::geotiff::geotiff_to_points`] for the coordinate conversion.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the raster has fewer than two pixels or if the
+    /// tree area cannot be constructed from the model extent.
+    pub fn from_geotiff(
+        geotiff: &geotiff::GeoTiff,
+        level_cap: usize,
+        max_depth: usize,
+    ) -> Result<Self> {
+        let points = crate::geotiff::geotiff_to_points(geotiff);
+        Self::from_points(&points, level_cap, max_depth)
+            .context("failed to build QuadTree from GeoTiff points")
+    }
+
+    /// Build a `QuadTree<f64>` from the pixel centers of multiple `GeoTiff`s.
+    ///
+    /// IDs are offset per file so they do not collide. See
+    /// [`crate::geotiff::geotiffs_to_points`].
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the combined points contain fewer than two points or
+    /// if the tree area cannot be constructed from them.
+    pub fn from_geotiffs(
+        geotiffs: &[geotiff::GeoTiff],
+        level_cap: usize,
+        max_depth: usize,
+    ) -> Result<Self> {
+        let points = crate::geotiff::geotiffs_to_points(geotiffs);
+        debug!("created {} points", points.len());
+        Self::from_points(&points, level_cap, max_depth)
+            .context("failed to build QuadTree from GeoTiff files")
     }
 }
 

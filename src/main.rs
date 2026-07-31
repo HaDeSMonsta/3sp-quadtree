@@ -18,9 +18,9 @@ use geotiff::GeoTiff;
 use quadtree::geometry::Point2D;
 use quadtree::quad_tree::QuadTree;
 use std::fs::{self, File};
+use std::io;
 use std::process::exit;
 use std::time::Instant;
-use std::{io, thread};
 use tracing::{info, subscriber};
 use tracing_subscriber::FmtSubscriber;
 
@@ -32,6 +32,7 @@ static GLOBAL: mimalloc::MiMalloc = mimalloc::MiMalloc;
 
 const BIN_NAME: &str = env!("CARGO_PKG_NAME");
 const BIN_VERSION: &str = env!("CARGO_PKG_VERSION");
+const TIFF_DIR: &str = "dwd-geotiff-epsg4326/";
 
 #[allow(unreachable_code)]
 fn main() -> Result<()> {
@@ -42,21 +43,12 @@ fn main() -> Result<()> {
 
     let tif_start = Instant::now();
 
-    let (tx, rx) = std::sync::mpsc::channel();
+    let tiff_cap = fs::read_dir(TIFF_DIR)
+        .context("failed to read tiff dir")?
+        .count();
+    let mut tiffs = Vec::with_capacity(tiff_cap);
 
-    let handle = thread::spawn(move || {
-        let mut n = 0u32;
-        while let Ok(tif) = rx.recv() {
-            if n != 0 {
-                println!("\n{}\n", "-".repeat(150));
-            }
-            n += 1;
-            info!("{n:0>6}:");
-            dbg!(&tif);
-        }
-    });
-
-    for entry in fs::read_dir("dwd-geotiff-epsg4326/").context("failed to read dir")? {
+    for entry in fs::read_dir(TIFF_DIR).context("failed to read dir")? {
         let path = entry.context("failed to read entry")?.path();
         if !path.is_file() || path.extension().is_none_or(|e| e != "tif") {
             continue;
@@ -66,13 +58,24 @@ fn main() -> Result<()> {
             File::open(path.as_path()).with_context(|| format!("failed to open {path:?}"))?;
         let tiff = GeoTiff::read(file)
             .with_context(|| format!("failed to read tiff data from {path:?}"))?;
-        tx.send(tiff).expect("failed to send tif");
+        tiffs.push(tiff);
     }
-    drop(tx);
-    handle.join().expect("failed to join thread");
+
+    info!("created {tiff_cap} tiff structs");
+
+    let treee =
+        QuadTree::from_geotiffs(&tiffs, 100, 100).context("failed to create tree from tiffs")?;
+    info!("created tree with {} elements", treee.len());
+
     let tif_elapsed = tif_start.elapsed();
-    println!("parsing took: {tif_elapsed:?}");
-    std::process::exit(0);
+    info!("parsing took: {tif_elapsed:?}");
+
+    let mut input = String::new();
+    io::stdin()
+        .read_line(&mut input)
+        .context("failed to read")?;
+
+    exit(0);
 
     let parsing_start = Instant::now();
     let data = simra::parse("simra").context("failed to parse simra data")?;

@@ -46,7 +46,7 @@ impl_coord!(
         + 'static
 );
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Point2D<T: Coord> {
     pub x: T,
     pub y: T,
