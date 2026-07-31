@@ -7,10 +7,13 @@ use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
 use std::fs;
 use std::path::Path;
-use tracing::{debug, trace};
+use tracing::debug;
 // Some thoughts:
 // Duplicate coordinates are allowed (might be different events or whatever)
 // Duplicate IDs are also allowed, that's the users' problem, we assume there are none
+
+/// Minimum number of points in a subtree before the bulk builder recurses in parallel.
+const PARALLEL_THRESHOLD: usize = 2_usize.pow(13);
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[allow(clippy::unsafe_derive_deserialize)] // The unsafe is in knn, doesn't matter here
@@ -65,11 +68,55 @@ impl<T: Coord> QuadTree<T> {
         Ok(Self::new(rect, level_cap, max_depth))
     }
 
+    /// Create Tree from a Vec of points.
+    /// Multi threads when there are enough points
+    ///
+    /// # Arguments
+    ///
+    /// * `points`: The points
+    /// * `level_cap`: The maximum number of elements to store in non-leaf nodes.
+    ///   Subdivides after reaching this number.
+    ///   Each division will allocate 4xcap, so keep it low to avoid waste of space
+    /// * `max_depth`: Maximum levels in the tree
+    ///
+    /// returns: `Result<QuadTree<T>, Report>`
+    ///
+    /// # Errors
+    ///
+    /// * `TreeErr2D::InsufficientPoints` if `points.len() < 2`
+    /// * `rayon::ThreadPoolBuildError` If Rayon can't create a threadpool
+    /// * If the build fails for some reason
+    ///
+    /// # Panics
+    ///
+    /// If we fucked up the logic and miscalculate the borders of the area
+    // Why take the vec and not slice:
+    // With a slice we have to copy all the data at some point anyway
+    // This can be a problem for a big input
+    // So the user can decide, if they don't need the data any more, give up ownership, otherwise clone
+    //
+    // Actually, you still have to allocate and copy all that data once before, if you need the data later, hmmm
+    // CONSIDER Slice version
     pub fn from_points(
-        points: &[DataPoint2D<T>],
+        points: Vec<DataPoint2D<T>>,
         level_cap: usize,
         max_depth: usize,
     ) -> Result<Self> {
+        let area =
+            Self::area_from_points(&points).context("failed to construct area from points")?;
+
+        debug!("building quadtree from {} points", points.len());
+        let pool = Self::thread_pool()?;
+        let tree = pool
+            .install(|| Self::build(area, points, level_cap, 0, max_depth))
+            .context("failed to build tree")?;
+
+        Ok(tree)
+    }
+
+    /// Helper function to extract common functionality shared between points creation function that takes ownership and the one that doesn't
+    // The second doesn't exist anymore
+    fn area_from_points(points: &[DataPoint2D<T>]) -> Result<Rect<T>> {
         let len = points.len();
         if len < 2 {
             bail!(TreeErr2D::InsufficientPoints::<T>(len));
@@ -97,28 +144,100 @@ impl<T: Coord> QuadTree<T> {
             }
         }
 
-        let mut tree = Self::from_coords(min_x, min_y, max_x, max_y, level_cap, max_depth)
-            .context("failed to construct tree from min/max coords")?;
+        let rect = Rect::from_coords(min_x, min_y, max_x, max_y)
+            .expect("miscalculated borders (impossible (hopefully))");
+        Ok(rect)
+    }
 
-        debug!("inserting");
-        let total = points.len();
+    /// Helper function to set project specific values that are true for all used thread pools
+    fn thread_pool() -> Result<rayon::ThreadPool> {
+        rayon::ThreadPoolBuilder::new()
+            .use_current_thread()
+            .build()
+            .context("failed to build rayon threadpool")
+    }
 
-        for (idx, dp) in points.iter().enumerate() {
-            tree.insert(*dp)
-                .with_context(|| format!("failed to insert {dp:?}"))?; // Is this even possible?
-            let cnt = idx + 1;
-            let pct = cnt * 100 / total;
-            let prev_pct = idx * 100 / total;
-            let n = idx % 10;
-            if pct != prev_pct {
-                trace!("inserted {cnt}/{} elements ({pct}%)", points.len());
+    /// Build a quadtree from a point set using a top-down bulk construction.
+    ///
+    /// The resulting tree is equivalent to inserting all points sequentially, but
+    /// recursively builds the four subtrees in parallel.
+    fn build(
+        area: Rect<T>,
+        mut points: Vec<DataPoint2D<T>>,
+        level_cap: usize,
+        depth: usize,
+        max_depth: usize,
+    ) -> Result<Self> {
+        if points.len() <= level_cap || depth == max_depth || !Self::is_subdividable_rect(&area) {
+            let mut tree = Self::new_child(area, level_cap, depth, max_depth);
+            let mut child_points = Vec::with_capacity(level_cap);
+
+            child_points.append(&mut points);
+
+            tree.points = child_points;
+            tree.len = tree.points.len();
+
+            return Ok(tree);
+        }
+
+        let child_depth = depth + 1;
+
+        let (cx, cy) = area.get_centers();
+
+        let rect_0 = Rect::from_coords(area.lower.x, cy, cx, area.upper.y)
+            .context("failed to create bulk-build rect 0")?;
+        let rect_1 = Rect::from_coords(cx, cy, area.upper.x, area.upper.y)
+            .context("failed to create bulk-build rect 1")?;
+        let rect_2 = Rect::from_coords(area.lower.x, area.lower.y, cx, cy)
+            .context("failed to create bulk-build rect 2")?;
+        let rect_3 = Rect::from_coords(cx, area.lower.y, area.upper.x, cy)
+            .context("failed to create bulk-build rect 3")?;
+
+        let mut q0 = Vec::new();
+        let mut q1 = Vec::new();
+        let mut q2 = Vec::new();
+        let mut q3 = Vec::new();
+
+        for point in points {
+            match Self::child_idx_for_point(&area, &point.point) {
+                0 => q0.push(point),
+                1 => q1.push(point),
+                2 => q2.push(point),
+                3 => q3.push(point),
+                i => unreachable!("only indices 0..4 should be valid, got: {i}"),
             }
         }
 
+        let children = if (q0.len() + q1.len() + q2.len() + q3.len()) > PARALLEL_THRESHOLD {
+            let ((c0, c1), (c2, c3)) = rayon::join(
+                || {
+                    rayon::join(
+                        || Self::build(rect_0, q0, level_cap, child_depth, max_depth),
+                        || Self::build(rect_1, q1, level_cap, child_depth, max_depth),
+                    )
+                },
+                || {
+                    rayon::join(
+                        || Self::build(rect_2, q2, level_cap, child_depth, max_depth),
+                        || Self::build(rect_3, q3, level_cap, child_depth, max_depth),
+                    )
+                },
+            );
+            [c0?, c1?, c2?, c3?]
+        } else {
+            [
+                Self::build(rect_0, q0, level_cap, child_depth, max_depth)?,
+                Self::build(rect_1, q1, level_cap, child_depth, max_depth)?,
+                Self::build(rect_2, q2, level_cap, child_depth, max_depth)?,
+                Self::build(rect_3, q3, level_cap, child_depth, max_depth)?,
+            ]
+        };
+
+        let mut tree = Self::new_child(area, level_cap, depth, max_depth);
+        tree.len = children.iter().map(|c| c.len).sum();
+        tree.children = Some(Box::new(children));
         Ok(tree)
     }
-
-    // pub fn from_points_vec()
 
     pub fn from_file<P: AsRef<Path>>(path: P) -> Result<Self>
     where
@@ -278,7 +397,10 @@ impl<T: Coord> QuadTree<T> {
     // Solution: Do not divide if floats don't play nicely
     // CONSIDER: Before inserting, just shift the values so this never executes (but keep as a fallback (or remove, because less paths to check))
     fn is_subdividable(&self) -> bool {
-        let rect = &self.area;
+        Self::is_subdividable_rect(&self.area)
+    }
+
+    fn is_subdividable_rect(rect: &Rect<T>) -> bool {
         let (cx, cy) = rect.get_centers();
 
         cx > rect.lower.x && cx < rect.upper.x && cy > rect.lower.y && cy < rect.upper.y
@@ -426,7 +548,7 @@ impl QuadTree<f64> {
         max_depth: usize,
     ) -> Result<Self> {
         let points = crate::geotiff::geotiff_to_points(geotiff);
-        Self::from_points(&points, level_cap, max_depth)
+        Self::from_points(points, level_cap, max_depth)
             .context("failed to build QuadTree from GeoTiff points")
     }
 
@@ -446,7 +568,7 @@ impl QuadTree<f64> {
     ) -> Result<Self> {
         let points = crate::geotiff::geotiffs_to_points(geotiffs);
         debug!("created {} points", points.len());
-        Self::from_points(&points, level_cap, max_depth)
+        Self::from_points(points, level_cap, max_depth)
             .context("failed to build QuadTree from GeoTiff files")
     }
 }
