@@ -1,5 +1,5 @@
-use crate::TreeErr3D;
 use crate::geometry::{Coord, Cuboid, Point3D};
+use crate::{TreeErr3D, PARALLEL_THRESHOLD};
 use color_eyre::Result;
 use color_eyre::eyre::{Context, bail};
 use serde::de::DeserializeOwned;
@@ -7,6 +7,7 @@ use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
 use std::fs;
 use std::path::Path;
+use tracing::debug;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[allow(clippy::unsafe_derive_deserialize)] // The unsafe is in knn, doesn't matter here
@@ -68,10 +69,23 @@ impl<T: Coord> OctTree<T> {
     }
 
     pub fn from_points(
-        points: &[DataPoint3D<T>],
+        points: Vec<DataPoint3D<T>>,
         level_cap: usize,
         max_depth: usize,
     ) -> Result<Self> {
+        let cube =
+            Self::cube_from_points(&points).context("failed to construct cube from points")?;
+
+        debug!("building octtree from {} points", points.len());
+        let pool = crate::thread_pool()?;
+        let tree = pool
+            .install(|| Self::build(cube, points, level_cap, 0, max_depth))
+            .context("failed to build tree")?;
+
+        Ok(tree)
+    }
+
+    fn cube_from_points(points: &[DataPoint3D<T>]) -> Result<Cuboid<T>> {
         let len = points.len();
         if len < 2 {
             bail!(TreeErr3D::InsufficientPoints::<T>(len));
@@ -107,17 +121,26 @@ impl<T: Coord> OctTree<T> {
             }
         }
 
-        let mut tree = Self::from_coords(
-            min_x, min_y, min_z, max_x, max_y, max_z, level_cap, max_depth,
-        )
-        .context("failed to construct tree from min/max coords")?;
+        let point_min = Point3D::new(min_x, min_y, min_z);
+        let point_max = Point3D::new(max_x, max_y, max_z);
+        let cube = Cuboid::new(point_min, point_max)
+            .context("failed to create tree due to invalid rect")?;
+        Ok(cube)
+    }
 
-        for dp in points {
-            tree.insert(dp.clone())
-                .with_context(|| format!("failed to insert {dp:?}"))?;
-        }
-
-        Ok(tree)
+    fn build(
+        cube: Cuboid<T>,
+        points: Vec<DataPoint3D<T>>,
+        level_cap: usize,
+        depth: usize,
+        max_depth: usize,
+    ) -> Result<Self> {
+        let root = OctNode::build_node(cube, points, level_cap, depth, max_depth)?;
+        Ok(Self {
+            root,
+            level_cap,
+            max_depth,
+        })
     }
 
     pub fn from_file<P: AsRef<Path>>(path: P) -> Result<Self>
@@ -186,6 +209,127 @@ impl<T: Coord> OctNode<T> {
             children: None,
             depth,
         }
+    }
+
+    fn build_node(
+        cube: Cuboid<T>,
+        mut points: Vec<DataPoint3D<T>>,
+        level_cap: usize,
+        depth: usize,
+        max_depth: usize,
+    ) -> Result<Self> {
+        if points.len() <= level_cap || depth == max_depth || !Self::is_subdividable_cube(&cube) {
+            let mut node = Self::new_child(cube, level_cap, depth);
+            node.points.append(&mut points);
+            node.len = node.points.len();
+            return Ok(node);
+        }
+
+        let child_depth = depth + 1;
+        let (cx, cy, cz) = cube.get_centers();
+
+        let cube_0 = Cuboid::from_coords(cube.lower.x, cy, cube.lower.z, cx, cube.upper.y, cz)
+            .context("failed to create bulk-build cube 0")?;
+        let cube_1 = Cuboid::from_coords(cx, cy, cube.lower.z, cube.upper.x, cube.upper.y, cz)
+            .context("failed to create bulk-build cube 1")?;
+        let cube_2 = Cuboid::from_coords(cube.lower.x, cube.lower.y, cube.lower.z, cx, cy, cz)
+            .context("failed to create bulk-build cube 2")?;
+        let cube_3 = Cuboid::from_coords(cx, cube.lower.y, cube.lower.z, cube.upper.x, cy, cz)
+            .context("failed to create bulk-build cube 3")?;
+        let cube_4 = Cuboid::from_coords(cube.lower.x, cy, cz, cx, cube.upper.y, cube.upper.z)
+            .context("failed to create bulk-build cube 4")?;
+        let cube_5 = Cuboid::from_coords(cx, cy, cz, cube.upper.x, cube.upper.y, cube.upper.z)
+            .context("failed to create bulk-build cube 5")?;
+        let cube_6 = Cuboid::from_coords(cube.lower.x, cube.lower.y, cz, cx, cy, cube.upper.z)
+            .context("failed to create bulk-build cube 6")?;
+        let cube_7 = Cuboid::from_coords(cx, cube.lower.y, cz, cube.upper.x, cy, cube.upper.z)
+            .context("failed to create bulk-build cube 7")?;
+
+        let mut q0 = Vec::new();
+        let mut q1 = Vec::new();
+        let mut q2 = Vec::new();
+        let mut q3 = Vec::new();
+        let mut q4 = Vec::new();
+        let mut q5 = Vec::new();
+        let mut q6 = Vec::new();
+        let mut q7 = Vec::new();
+
+        for point in points {
+            match Self::child_idx_for_point(&cube, &point.point) {
+                0 => q0.push(point),
+                1 => q1.push(point),
+                2 => q2.push(point),
+                3 => q3.push(point),
+                4 => q4.push(point),
+                5 => q5.push(point),
+                6 => q6.push(point),
+                7 => q7.push(point),
+                i => unreachable!("only indices 0..8 should be valid, got: {i}"),
+            }
+        }
+
+        let children = if (q0.len()
+            + q1.len()
+            + q2.len()
+            + q3.len()
+            + q4.len()
+            + q5.len()
+            + q6.len()
+            + q7.len())
+            > PARALLEL_THRESHOLD
+        {
+            let (((c0, c1), (c2, c3)), ((c4, c5), (c6, c7))) = rayon::join(
+                || {
+                    rayon::join(
+                        || {
+                            rayon::join(
+                                || Self::build_node(cube_0, q0, level_cap, child_depth, max_depth),
+                                || Self::build_node(cube_1, q1, level_cap, child_depth, max_depth),
+                            )
+                        },
+                        || {
+                            rayon::join(
+                                || Self::build_node(cube_2, q2, level_cap, child_depth, max_depth),
+                                || Self::build_node(cube_3, q3, level_cap, child_depth, max_depth),
+                            )
+                        },
+                    )
+                },
+                || {
+                    rayon::join(
+                        || {
+                            rayon::join(
+                                || Self::build_node(cube_4, q4, level_cap, child_depth, max_depth),
+                                || Self::build_node(cube_5, q5, level_cap, child_depth, max_depth),
+                            )
+                        },
+                        || {
+                            rayon::join(
+                                || Self::build_node(cube_6, q6, level_cap, child_depth, max_depth),
+                                || Self::build_node(cube_7, q7, level_cap, child_depth, max_depth),
+                            )
+                        },
+                    )
+                },
+            );
+            [c0?, c1?, c2?, c3?, c4?, c5?, c6?, c7?]
+        } else {
+            [
+                Self::build_node(cube_0, q0, level_cap, child_depth, max_depth)?,
+                Self::build_node(cube_1, q1, level_cap, child_depth, max_depth)?,
+                Self::build_node(cube_2, q2, level_cap, child_depth, max_depth)?,
+                Self::build_node(cube_3, q3, level_cap, child_depth, max_depth)?,
+                Self::build_node(cube_4, q4, level_cap, child_depth, max_depth)?,
+                Self::build_node(cube_5, q5, level_cap, child_depth, max_depth)?,
+                Self::build_node(cube_6, q6, level_cap, child_depth, max_depth)?,
+                Self::build_node(cube_7, q7, level_cap, child_depth, max_depth)?,
+            ]
+        };
+
+        let mut node = Self::new_child(cube, level_cap, depth);
+        node.len = children.iter().map(|c| c.len).sum();
+        node.children = Some(Box::new(children));
+        Ok(node)
     }
 
     fn insert(
@@ -273,7 +417,10 @@ impl<T: Coord> OctNode<T> {
     }
 
     fn is_subdividable(&self) -> bool {
-        let cube = &self.area;
+        Self::is_subdividable_cube(&self.area)
+    }
+
+    fn is_subdividable_cube(cube: &Cuboid<T>) -> bool {
         let (cx, cy, cz) = cube.get_centers();
 
         cx > cube.lower.x
