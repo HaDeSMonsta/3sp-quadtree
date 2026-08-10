@@ -12,8 +12,7 @@ use tracing::debug;
 // Duplicate coordinates are allowed (might be different events or whatever)
 // Duplicate IDs are also allowed, that's the users' problem, we assume there are none
 
-/// Minimum number of points in a subtree before the bulk builder recurses in parallel.
-const PARALLEL_THRESHOLD: usize = 2_usize.pow(13);
+use crate::PARALLEL_THRESHOLD;
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[allow(clippy::unsafe_derive_deserialize)] // The unsafe is in knn, doesn't matter here
@@ -106,7 +105,7 @@ impl<T: Coord> QuadTree<T> {
             Self::area_from_points(&points).context("failed to construct area from points")?;
 
         debug!("building quadtree from {} points", points.len());
-        let pool = Self::thread_pool()?;
+        let pool = crate::thread_pool()?;
         let tree = pool
             .install(|| Self::build(area, points, level_cap, 0, max_depth))
             .context("failed to build tree")?;
@@ -147,14 +146,6 @@ impl<T: Coord> QuadTree<T> {
         let rect = Rect::from_coords(min_x, min_y, max_x, max_y)
             .expect("miscalculated borders (impossible (hopefully))");
         Ok(rect)
-    }
-
-    /// Helper function to set project specific values that are true for all used thread pools
-    fn thread_pool() -> Result<rayon::ThreadPool> {
-        rayon::ThreadPoolBuilder::new()
-            .use_current_thread()
-            .build()
-            .context("failed to build rayon threadpool")
     }
 
     /// Build a quadtree from a point set using a top-down bulk construction.

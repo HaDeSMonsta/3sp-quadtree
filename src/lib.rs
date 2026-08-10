@@ -35,6 +35,18 @@ pub mod oct_tree;
 pub mod quad;
 pub mod quad_tree;
 
+use color_eyre::eyre::Context;
 pub use err::*;
 pub use geometry::{Point2D, Rect};
 pub use quad_tree::{DataPoint2D, QuadTree};
+
+/// Minimum number of points in a subtree before the bulk builder recurses in parallel.
+const PARALLEL_THRESHOLD: usize = 2_usize.pow(13);
+
+/// Helper function to set project specific values that are true for all used thread pools
+fn thread_pool() -> color_eyre::Result<rayon::ThreadPool> {
+    rayon::ThreadPoolBuilder::new()
+        .use_current_thread()
+        .build()
+        .context("failed to build rayon threadpool")
+}
