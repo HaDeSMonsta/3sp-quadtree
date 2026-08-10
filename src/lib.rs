@@ -10,6 +10,11 @@
     clippy::missing_errors_doc // TODO Remove and document
 )]
 
+use color_eyre::eyre::Context;
+pub use err::*;
+pub use geometry::{Point2D, Rect};
+pub use quad_tree::{DataPoint2D, QuadTree};
+
 macro_rules! diff {
     ($x:expr, $y:expr) => {
         if $x >= $y { $x - $y } else { $y - $x }
@@ -34,11 +39,6 @@ pub mod oct;
 pub mod oct_tree;
 pub mod quad;
 pub mod quad_tree;
-
-use color_eyre::eyre::Context;
-pub use err::*;
-pub use geometry::{Point2D, Rect};
-pub use quad_tree::{DataPoint2D, QuadTree};
 
 /// Minimum number of points in a subtree before the bulk builder recurses in parallel.
 const PARALLEL_THRESHOLD: usize = 2_usize.pow(13);
