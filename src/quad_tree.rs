@@ -161,11 +161,8 @@ impl<T: Coord> QuadTree<T> {
     ) -> Result<Self> {
         if points.len() <= level_cap || depth == max_depth || !Self::is_subdividable_rect(&area) {
             let mut tree = Self::new_child(area, level_cap, depth, max_depth);
-            let mut child_points = Vec::with_capacity(level_cap);
 
-            child_points.append(&mut points);
-
-            tree.points = child_points;
+            tree.points.append(&mut points);
             tree.len = tree.points.len();
 
             return Ok(tree);
