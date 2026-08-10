@@ -500,6 +500,7 @@ dependencies = [
  "clap",
  "clap_complete",
  "color-eyre",
+ "geo-types",
  "geotiff",
  "mimalloc",
  "num-traits",

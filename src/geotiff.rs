@@ -1,5 +1,8 @@
+use crate::TiffMapErr;
 use crate::geometry::Point2D;
 use crate::quad_tree::DataPoint2D;
+use color_eyre::Result;
+use std::collections::HashMap;
 
 /// Convert a `GeoTiff` into a flat list of pixel-center points in model space.
 ///
@@ -66,8 +69,20 @@ pub fn geotiff_to_points_with_offset(
             let y = (row as f64 + 0.5).mul_add(-dy, max_y);
             let id = id_offset + row * width + col;
             points.push(DataPoint2D::new(id, Point2D::new(x, y)));
+
+            // TODO Remove this, this is just an example get of a value
+            // TODO We probably want to create a map id -> Point
+            // let val = geotiff.get_value_at::<f32>(&geo_types::Coord { x, y }, 0);
+            // match val {
+            //     Some(0.0) => {}
+            //     Some(f) => {
+            //         dbg!(f);
+            //     }
+            //     None => panic!("no value @ {x}/{y}"),
+            // }
         }
     }
+    // assert_eq!(geotiff.num_samples, points.len());
 
     points
 }
@@ -83,11 +98,38 @@ pub fn geotiffs_to_points(geotiffs: &[geotiff::GeoTiff]) -> Vec<DataPoint2D<f64>
     let mut id_offset = 0;
     for tiff in geotiffs {
         let tiff_size = tiff.raster_width * tiff.raster_height;
+
         let mut tiff_points = geotiff_to_points_with_offset(tiff, id_offset);
+        assert_eq!(tiff_size, tiff_points.len());
+
         id_offset += tiff_size;
         points.append(&mut tiff_points);
     }
     points
+}
+
+// TODO Make this all generic
+pub fn map_points(
+    geotiff: geotiff::GeoTiff,
+    points: &[DataPoint2D<f64>],
+) -> Result<HashMap<usize, f32>, TiffMapErr<f64>> {
+    let mut map = HashMap::new();
+
+    for point in points {
+        let id = point.id;
+        let x = point.point.x;
+        let y = point.point.y;
+
+        let coord = geo_types::Coord { x, y };
+        let val = geotiff
+            .get_value_at::<f32>(&coord, 0)
+            .ok_or_else(|| TiffMapErr::MissingValue { x, y })?;
+        if let Some(_old) = map.insert(id, val) {
+            return Err(TiffMapErr::DuplicateId(id));
+        }
+    }
+
+    Ok(map)
 }
 
 #[cfg(test)]
