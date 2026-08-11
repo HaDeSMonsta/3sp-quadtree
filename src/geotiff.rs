@@ -117,8 +117,9 @@ pub fn geotiffs_to_points(geotiffs: &[geotiff::GeoTiff]) -> Vec<DataPoint2D<f64>
 /// Returns [`TiffMapErr::MissingValue`] if a point's coordinate cannot be
 /// mapped to a valid raster pixel. Returns [`TiffMapErr::DuplicateId`] if two
 /// points share the same `id`.
+#[allow(dead_code)] // TODO Use function
 pub fn map_points(
-    geotiff: geotiff::GeoTiff,
+    geotiff: &geotiff::GeoTiff,
     points: &[DataPoint2D<f64>],
 ) -> Result<HashMap<usize, f32>, TiffMapErr<f64>> {
     let mut map = HashMap::new();
@@ -131,7 +132,7 @@ pub fn map_points(
         let coord = geo_types::Coord { x, y };
         let val = geotiff
             .get_value_at::<f32>(&coord, 0)
-            .ok_or_else(|| TiffMapErr::MissingValue { x, y })?;
+            .ok_or(TiffMapErr::MissingValue { x, y })?;
         if let Some(_old) = map.insert(id, val) {
             return Err(TiffMapErr::DuplicateId(id));
         }
@@ -181,6 +182,8 @@ fn filename_to_epoch_seconds(filename: &str) -> Result<f64> {
         .context("invalid datetime")?
         .to_zoned(TimeZone::UTC)
         .context("failed to get zoned datetime")?;
+
+    #[allow(clippy::cast_precision_loss)] // I'm not happy about that one TODO Fix somehow
     Ok(zdt.timestamp().as_second() as f64)
 }
 
