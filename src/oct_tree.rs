@@ -1,5 +1,5 @@
 use crate::geometry::{Coord, Cuboid, Point3D};
-use crate::{TreeErr3D, PARALLEL_THRESHOLD};
+use crate::{PARALLEL_THRESHOLD, TreeErr3D};
 use color_eyre::Result;
 use color_eyre::eyre::{Context, bail};
 use serde::de::DeserializeOwned;
@@ -518,6 +518,24 @@ impl<T: Coord> OctNode<T> {
                 children[idx].contains(&data_point)
             },
         )
+    }
+}
+
+impl OctTree<f64> {
+    /// Build an `OctTree<f64>` from the pixel centers of multiple `GeoTiff`s,
+    /// parsing the timestamp from each filename for the z-coordinate.
+    ///
+    /// IDs are offset per file so they do not collide.
+    pub fn from_geotiffs(
+        geotiffs: &[(&geotiff::GeoTiff, &str)],
+        level_cap: usize,
+        max_depth: usize,
+    ) -> Result<Self> {
+        let points = crate::geotiff::geotiffs_to_3d_points(geotiffs)?;
+
+        let tree = Self::from_points(points, level_cap, max_depth)
+            .context("failed to build OctTree from GeoTiff files")?;
+        Ok(tree)
     }
 }
 

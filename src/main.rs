@@ -13,12 +13,14 @@ use crate::bin_assets::cli::{Args, Cmd};
 use crate::bin_assets::simra;
 use clap::{CommandFactory, Parser};
 use color_eyre::Result;
-use color_eyre::eyre::Context;
+use color_eyre::eyre::{Context, ContextCompat};
 use geotiff::GeoTiff;
 use quadtree::geometry::Point2D;
+use quadtree::oct_tree::OctTree;
 use quadtree::quad_tree::QuadTree;
 use std::fs::{self, File};
 use std::io;
+use std::io::Write;
 use std::process::exit;
 use std::time::Instant;
 use tracing::{info, subscriber};
@@ -54,23 +56,35 @@ fn main() -> Result<()> {
             continue;
         }
 
+        let filename = path
+            .file_name()
+            .context("no filename")?
+            .to_str()
+            .context("invalid filename")?
+            .to_owned();
+
         let file =
             File::open(path.as_path()).with_context(|| format!("failed to open {path:?}"))?;
         let tiff = GeoTiff::read(file)
             .with_context(|| format!("failed to read tiff data from {path:?}"))?;
-        tiffs.push(tiff);
+        tiffs.push((tiff, filename));
     }
 
     info!("created {tiff_cap} tiff structs");
 
+    let tiff_refs = tiffs
+        .iter()
+        .map(|(t, f)| (t, f.as_str()))
+        .collect::<Vec<_>>();
     let treee =
-        QuadTree::from_geotiffs(&tiffs, 100, 100).context("failed to create tree from tiffs")?;
+        OctTree::from_geotiffs(&tiff_refs, 100, 5).context("failed to create tree from tiffs")?;
     info!("created tree with {} elements", treee.len());
 
     let tif_elapsed = tif_start.elapsed();
     info!("parsing took: {tif_elapsed:?}");
 
-    println!("return to end");
+    print!("enter to end: ");
+    io::stdout().flush().context("failed to flush")?;
     let mut input = String::new();
     io::stdin()
         .read_line(&mut input)

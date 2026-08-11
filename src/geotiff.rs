@@ -1,7 +1,11 @@
 use crate::TiffMapErr;
-use crate::geometry::Point2D;
+use crate::geometry::{Point2D, Point3D};
+use crate::oct_tree::DataPoint3D;
 use crate::quad_tree::DataPoint2D;
 use color_eyre::Result;
+use color_eyre::eyre::{Context, bail};
+use jiff::civil::DateTime;
+use jiff::tz::TimeZone;
 use std::collections::HashMap;
 
 /// Convert a `GeoTiff` into a flat list of pixel-center points in model space.
@@ -14,42 +18,11 @@ use std::collections::HashMap;
 /// affine case; rotated or sheared transforms will be approximated.
 #[allow(clippy::cast_precision_loss)]
 #[must_use]
-pub fn geotiff_to_points(geotiff: &geotiff::GeoTiff) -> Vec<DataPoint2D<f64>> {
-    let extent = geotiff.model_extent();
-    let width = geotiff.raster_width;
-    let height = geotiff.raster_height;
-
-    let min_x = extent.min().x;
-    let min_y = extent.min().y;
-    let max_x = extent.max().x;
-    let max_y = extent.max().y;
-
-    let dx = (max_x - min_x) / width as f64;
-    let dy = (max_y - min_y) / height as f64;
-
-    let mut points = Vec::with_capacity(width * height);
-    for row in 0..height {
-        for col in 0..width {
-            let x = (col as f64 + 0.5).mul_add(dx, min_x);
-            // Row 0 is the top of the raster image; in model space (lat/lon) that is
-            // usually the northern / maximum y edge.
-            let y = (row as f64 + 0.5).mul_add(-dy, max_y);
-            let id = row * width + col;
-            points.push(DataPoint2D::new(id, Point2D::new(x, y)));
-        }
-    }
-
-    points
-}
-
-/// Same as [`geotiff_to_points`], but IDs start at `id_offset` so multiple
-/// `GeoTIFFs` can be concatenated without collisions.
-#[allow(clippy::cast_precision_loss)]
-#[must_use]
-pub fn geotiff_to_points_with_offset(
+pub fn geotiff_to_points(
     geotiff: &geotiff::GeoTiff,
-    id_offset: usize,
+    id_offset: Option<usize>,
 ) -> Vec<DataPoint2D<f64>> {
+    let id_offset = id_offset.unwrap_or(0);
     let extent = geotiff.model_extent();
     let width = geotiff.raster_width;
     let height = geotiff.raster_height;
@@ -99,7 +72,7 @@ pub fn geotiffs_to_points(geotiffs: &[geotiff::GeoTiff]) -> Vec<DataPoint2D<f64>
     for tiff in geotiffs {
         let tiff_size = tiff.raster_width * tiff.raster_height;
 
-        let mut tiff_points = geotiff_to_points_with_offset(tiff, id_offset);
+        let mut tiff_points = geotiff_to_points(tiff, Some(id_offset));
         assert_eq!(tiff_size, tiff_points.len());
 
         id_offset += tiff_size;
@@ -132,6 +105,92 @@ pub fn map_points(
     Ok(map)
 }
 
+/// Seconds since Unix epoch from a DWD filename `YW_2017.002_YYYYMMDD_HHMM.tif`.
+fn filename_to_epoch_seconds(filename: &str) -> Result<f64> {
+    if filename.len() < 25 {
+        bail!("filename too short to parse");
+    }
+
+    macro_rules! parse {
+        ($source:expr, $range:expr, $to:ty, $e:expr) => {
+            $source[$range]
+                .parse::<$to>()
+                .context(concat!("failed to parse ", $e))?
+        };
+    }
+
+    let ts = &filename[12..25];
+    let year = parse!(ts, 0..4, i16, "year");
+    let month = parse!(ts, 4..6, i8, "month");
+    let day = parse!(ts, 6..8, i8, "day");
+    let hour = parse!(ts, 9..11, i8, "hour");
+    let minute = parse!(ts, 11..13, i8, "minute");
+
+    let zdt = DateTime::new(year, month, day, hour, minute, 0, 0)
+        .context("invalid datetime")?
+        .to_zoned(TimeZone::UTC)
+        .context("failed to get zoned datetime")?;
+    Ok(zdt.timestamp().as_second() as f64)
+}
+
+/// Same as [`geotiff_to_points`], but with a third dimension.
+#[allow(clippy::cast_precision_loss)]
+#[must_use]
+pub fn geotiff_to_3d_points(
+    geotiff: &geotiff::GeoTiff,
+    epoch_seconds: f64,
+    id_offset: Option<usize>,
+) -> Vec<DataPoint3D<f64>> {
+    let id_offset = id_offset.unwrap_or(0);
+    let extent = geotiff.model_extent();
+    let width = geotiff.raster_width;
+    let height = geotiff.raster_height;
+
+    let min_x = extent.min().x;
+    let min_y = extent.min().y;
+    let max_x = extent.max().x;
+    let max_y = extent.max().y;
+
+    let dx = (max_x - min_x) / width as f64;
+    let dy = (max_y - min_y) / height as f64;
+
+    let mut points = Vec::with_capacity(width * height);
+    for row in 0..height {
+        for col in 0..width {
+            let x = (col as f64 + 0.5).mul_add(dx, min_x);
+            let y = (row as f64 + 0.5).mul_add(-dy, max_y);
+            let id = id_offset + row * width + col;
+            points.push(DataPoint3D::new(id, Point3D::new(x, y, epoch_seconds)));
+        }
+    }
+
+    points
+}
+
+/// Convert a slice of `(GeoTiff, filename)` pairs into a single flat list of
+/// 3D points, parsing the timestamp from each filename. IDs are offset per
+/// file to avoid collisions.
+///
+/// # Errors
+///
+/// Returns an error if a filename cannot be parsed into a valid timestamp.
+pub fn geotiffs_to_3d_points(
+    geotiffs: &[(&geotiff::GeoTiff, &str)],
+) -> Result<Vec<DataPoint3D<f64>>> {
+    let mut points = Vec::new();
+    let mut id_offset = 0;
+    for &(tiff, filename) in geotiffs {
+        let time = filename_to_epoch_seconds(filename)
+            .with_context(|| format!("failed to parse time from {filename}"))?;
+        let tiff_size = tiff.raster_width * tiff.raster_height;
+        let mut tiff_points = geotiff_to_3d_points(tiff, time, Some(id_offset));
+        assert_eq!(tiff_size, tiff_points.len());
+        id_offset += tiff_size;
+        points.append(&mut tiff_points);
+    }
+    Ok(points)
+}
+
 #[cfg(test)]
 mod tests {
     use super::{geotiff_to_points, geotiffs_to_points};
@@ -144,8 +203,9 @@ mod tests {
     fn read_first_geotiff_into_tree() -> Result<()> {
         let path = "dwd-geotiff-epsg4326/YW_2017.002_20220101_0000.tif";
         let file = File::open(path)?;
-        let tiff = GeoTiff::read(file)?;
-        let tree = QuadTree::from_geotiff(&tiff, 10, 10)?;
+        let tiff = [GeoTiff::read(file)?];
+        let tree = QuadTree::from_geotiffs(&tiff, 10, 10)?;
+        let tiff = &tiff[0];
         assert_eq!(tree.len(), tiff.raster_width * tiff.raster_height);
         Ok(())
     }
@@ -155,7 +215,7 @@ mod tests {
         let path = "dwd-geotiff-epsg4326/YW_2017.002_20220101_0000.tif";
         let file = File::open(path)?;
         let tiff = GeoTiff::read(file)?;
-        let points = geotiff_to_points(&tiff);
+        let points = geotiff_to_points(&tiff, None);
         let extent = tiff.model_extent();
         let min = extent.min();
         let max = extent.max();

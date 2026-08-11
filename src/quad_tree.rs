@@ -522,24 +522,6 @@ impl<T: Coord> QuadTree<T> {
 }
 
 impl QuadTree<f64> {
-    /// Build a `QuadTree<f64>` from the pixel centers of a `GeoTIFF`.
-    ///
-    /// See [`crate::geotiff::geotiff_to_points`] for the coordinate conversion.
-    ///
-    /// # Errors
-    ///
-    /// Returns an error if the raster has fewer than two pixels or if the
-    /// tree area cannot be constructed from the model extent.
-    pub fn from_geotiff(
-        geotiff: &geotiff::GeoTiff,
-        level_cap: usize,
-        max_depth: usize,
-    ) -> Result<Self> {
-        let points = crate::geotiff::geotiff_to_points(geotiff);
-        Self::from_points(points, level_cap, max_depth)
-            .context("failed to build QuadTree from GeoTiff points")
-    }
-
     /// Build a `QuadTree<f64>` from the pixel centers of multiple `GeoTiff`s.
     ///
     /// IDs are offset per file so they do not collide. See
