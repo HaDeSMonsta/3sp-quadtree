@@ -8,14 +8,23 @@ use jiff::civil::DateTime;
 use jiff::tz::TimeZone;
 use std::collections::HashMap;
 
-/// Convert a `GeoTiff` into a flat list of pixel-center points in model space.
+/// Convert a `GeoTiff` raster into a flat list of pixel-center 2D points.
 ///
-/// The point `id` is the raster index `row * raster_width + col`, so it is unique
-/// within a single `GeoTIFF`. If you merge several `GeoTIFFs`, offset the IDs yourself.
+/// Each point gets an `id` computed as `id_offset + row * raster_width + col`,
+/// making IDs unique within a single `GeoTiff`. When merging points from multiple
+/// `GeoTiff`s, pass a different `id_offset` for each to avoid collisions.
 ///
-/// Coordinates are computed by linearly interpolating between the corners of
-/// [`GeoTiff::model_extent`]. This is exact for the common scale/translate
-/// affine case; rotated or sheared transforms will be approximated.
+/// Coordinates are placed at pixel centers by linearly interpolating between the
+/// corners of the model extent (`min_x`,`min_y`) → (`max_x`,`max_y`). The y-axis
+/// is flipped so that row 0 maps to the northern (top) edge.
+///
+/// # Parameters
+///
+/// * `geotiff` - The source `GeoTiff` raster. Its raster dimensions and model
+///   extent determine the number and spatial layout of the output points.
+/// * `id_offset` - An optional base value added to every point's `id`. Use
+///   `None` (equivalent to `0`) for a single `GeoTiff`, or `Some(n)` to shift IDs
+///   when combining multiple rasters.
 #[allow(clippy::cast_precision_loss)]
 #[must_use]
 pub fn geotiff_to_points(
@@ -60,11 +69,17 @@ pub fn geotiff_to_points(
     points
 }
 
-/// Convert a slice of `GeoTiff`s into a single flat list of pixel-center points.
+/// Convert a slice of `GeoTiff` rasters into a single flat list of pixel-center 2D points.
 ///
-/// IDs are offset so that each input `GeoTiff` contributes a non-overlapping ID
-/// range: the first file starts at `0`, the second at `raster_width * raster_height`,
-/// and so on.
+/// IDs are allocated in non-overlapping ranges: the first `GeoTiff` occupies IDs
+/// `0 .. raster_width × raster_height`, the second picks up where the first left
+/// off, and so on. Pass progressively increasing `id_offset` values to achieve
+/// the same effect manually.
+///
+/// # Parameters
+///
+/// * `geotiffs` - A slice of `GeoTiff` rasters to flatten. Each raster's points are
+///   appended in order, producing one contiguous list.
 #[must_use]
 pub fn geotiffs_to_points(geotiffs: &[geotiff::GeoTiff]) -> Vec<DataPoint2D<f64>> {
     let mut points = Vec::new();
@@ -81,7 +96,27 @@ pub fn geotiffs_to_points(geotiffs: &[geotiff::GeoTiff]) -> Vec<DataPoint2D<f64>
     points
 }
 
-// TODO Make this all generic
+/// Look up the `GeoTiff` raster value at each point's coordinates and build an
+/// `id → value` map.
+///
+/// For every point in the input slice, the function samples band `0` of the
+/// `GeoTiff` at `(point.point.x, point.point.y)`. If a coordinate falls outside
+/// the raster or the pixel is nodata, the function returns
+/// [`TiffMapErr::MissingValue`]. Duplicate point IDs trigger
+/// [`TiffMapErr::DuplicateId`].
+///
+/// # Parameters
+///
+/// * `geotiff` — An owned `GeoTiff` whose raster values are sampled.
+/// * `points` — A slice of 2D points. Each point must carry a unique `id` that
+///   will become the map key. Coordinates are expected to be in the same CRS as
+///   the `GeoTiff`.
+///
+/// # Errors
+///
+/// Returns [`TiffMapErr::MissingValue`] if a point's coordinate cannot be
+/// mapped to a valid raster pixel. Returns [`TiffMapErr::DuplicateId`] if two
+/// points share the same `id`.
 pub fn map_points(
     geotiff: geotiff::GeoTiff,
     points: &[DataPoint2D<f64>],
@@ -105,7 +140,23 @@ pub fn map_points(
     Ok(map)
 }
 
-/// Seconds since Unix epoch from a DWD filename `YW_2017.002_YYYYMMDD_HHMM.tif`.
+/// Parse a `DWD` filename of the form `YW_2017.002_YYYYMMDD_HHMM.tif` and return
+/// the Unix epoch timestamp (seconds since 1970-01-01 00:00:00 UTC) as an `f64`.
+///
+/// The filename must be at least 25 characters long. The timestamp portion is
+/// extracted from byte offsets 12..25 (`YYYYMMDD_HHMM`). If the string is too
+/// short or the date/time components are invalid, an error is returned.
+///
+/// # Parameters
+///
+/// * `filename` — A `DWD`-style filename string containing an embedded UTC
+///   timestamp in `YYYYMMDD_HHMM` format at positions 12–24.
+///
+/// # Errors
+///
+/// Returns an error if the filename is shorter than 25 characters, if any
+/// date/time component fails to parse, or if the parsed fields do not form a
+/// valid `DateTime`.
 fn filename_to_epoch_seconds(filename: &str) -> Result<f64> {
     if filename.len() < 25 {
         bail!("filename too short to parse");
@@ -133,7 +184,23 @@ fn filename_to_epoch_seconds(filename: &str) -> Result<f64> {
     Ok(zdt.timestamp().as_second() as f64)
 }
 
-/// Same as [`geotiff_to_points`], but with a third dimension.
+/// Convert a `GeoTiff` raster into a flat list of pixel-center 3D points.
+///
+/// Each point carries `(x, y, time)` where `x` and `y` are the pixel-center
+/// model coordinates (north-up y-axis) and `time` is the caller-supplied
+/// `epoch_seconds`.  The point `id` is `id_offset + row * raster_width + col`,
+/// unique within a single raster.  Pass different `id_offset` values when
+/// merging rasters to avoid collisions.
+///
+/// # Parameters
+///
+/// * `geotiff` — The source `GeoTiff` raster whose spatial extent and dimensions
+///   drive the pixel-center coordinate computation.
+/// * `epoch_seconds` — A Unix timestamp (seconds since 1970-01-01 00:00:00 UTC)
+///   assigned to every point in the output as the z / time dimension.
+/// * `id_offset` — An optional base value added to every point's `id`. Use
+///   `None` (equivalent to `0`) for a single raster, or `Some(n)` to shift IDs
+///   when combining rasters.
 #[allow(clippy::cast_precision_loss)]
 #[must_use]
 pub fn geotiff_to_3d_points(
@@ -168,12 +235,24 @@ pub fn geotiff_to_3d_points(
 }
 
 /// Convert a slice of `(GeoTiff, filename)` pairs into a single flat list of
-/// 3D points, parsing the timestamp from each filename. IDs are offset per
-/// file to avoid collisions.
+/// pixel-center 3D points, parsing each filename's embedded `DWD` timestamp as
+/// the z / time dimension.
+///
+/// IDs are allocated in non-overlapping ranges: the first pair occupies IDs
+/// `0 .. raster_width × raster_height`, the second picks up where the first
+/// left off, and so on.  Each filename is expected to follow the `DWD`
+/// convention `YW_2017.002_YYYYMMDD_HHMM.tif`.
+///
+/// # Parameters
+///
+/// * `geotiffs` — A slice of `(&GeoTiff, &str)` tuples. The `GeoTiff` provides
+///   spatial coordinates and dimensions; the string is a `DWD` filename from which
+///   the UTC timestamp is extracted.
 ///
 /// # Errors
 ///
-/// Returns an error if a filename cannot be parsed into a valid timestamp.
+/// Returns an error if any filename is too short, fails to parse, or contains
+/// an invalid date/time.
 pub fn geotiffs_to_3d_points(
     geotiffs: &[(&geotiff::GeoTiff, &str)],
 ) -> Result<Vec<DataPoint3D<f64>>> {
