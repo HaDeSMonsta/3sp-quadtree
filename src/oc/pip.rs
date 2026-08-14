@@ -1,8 +1,8 @@
 use crate::geometry::{Coord, Point2D, Point3D};
-use crate::oct_tree::OctTree;
+use crate::oc_tree::OcTree;
 use crate::quad::pip::Polygon;
 
-impl<T: Coord> OctTree<T> {
+impl<T: Coord> OcTree<T> {
     /// Point-in-polygon for 3D points: the x/y projection must be inside the
     /// polygon and z must lie within `[z_min, z_max]` (inclusive). The polygon
     /// is effectively extruded into a prism along the z axis.
@@ -19,7 +19,7 @@ impl<T: Coord> OctTree<T> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::oct_tree::OctTree;
+    use crate::oc_tree::OcTree;
     use crate::quad::pip::Polygon;
 
     fn p2(x: f64, y: f64) -> Point2D<f64> {
@@ -40,8 +40,8 @@ mod tests {
         .unwrap()
     }
 
-    fn tree() -> OctTree<f64> {
-        OctTree::from_coords(0.0, 0.0, 0.0, 100.0, 100.0, 100.0, 4, 10).unwrap()
+    fn tree() -> OcTree<f64> {
+        OcTree::from_coords(0.0, 0.0, 0.0, 100.0, 100.0, 100.0, 4, 10).unwrap()
     }
 
     #[test]
@@ -87,7 +87,7 @@ mod tests {
 
     #[test]
     fn pip_integer_coords() {
-        let tree = OctTree::from_coords(0, 0, 0, 100, 100, 100, 4, 10).unwrap();
+        let tree = OcTree::from_coords(0, 0, 0, 100, 100, 100, 4, 10).unwrap();
         let polygon = Polygon::new(vec![
             Point2D::new(0, 0),
             Point2D::new(10, 0),

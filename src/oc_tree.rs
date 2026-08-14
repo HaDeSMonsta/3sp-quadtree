@@ -11,14 +11,14 @@ use tracing::debug;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[allow(clippy::unsafe_derive_deserialize)] // The unsafe is in knn, doesn't matter here
-pub struct OctTree<T: Coord> {
-    pub(crate) root: OctNode<T>,
+pub struct OcTree<T: Coord> {
+    pub(crate) root: OcNode<T>,
     pub(crate) level_cap: usize,
     pub(crate) max_depth: usize,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct OctNode<T: Coord> {
+pub struct OcNode<T: Coord> {
     pub(crate) area: Cuboid<T>,
     pub(crate) points: Vec<DataPoint3D<T>>,
     pub(crate) len: usize,
@@ -40,10 +40,10 @@ pub struct DataPoint3D<T: Coord> {
     pub point: Point3D<T>,
 }
 
-impl<T: Coord> OctTree<T> {
+impl<T: Coord> OcTree<T> {
     pub const fn new(area: Cuboid<T>, level_cap: usize, max_depth: usize) -> Self {
         Self {
-            root: OctNode::new(area),
+            root: OcNode::new(area),
             level_cap,
             max_depth,
         }
@@ -76,7 +76,7 @@ impl<T: Coord> OctTree<T> {
         let cube =
             Self::cube_from_points(&points).context("failed to construct cube from points")?;
 
-        debug!("building octtree from {} points", points.len());
+        debug!("building octree from {} points", points.len());
         let pool = crate::thread_pool()?;
         let tree = pool
             .install(|| Self::build(cube, points, level_cap, 0, max_depth))
@@ -135,7 +135,7 @@ impl<T: Coord> OctTree<T> {
         depth: usize,
         max_depth: usize,
     ) -> Result<Self> {
-        let root = OctNode::build_node(cube, points, level_cap, depth, max_depth)?;
+        let root = OcNode::build_node(cube, points, level_cap, depth, max_depth)?;
         Ok(Self {
             root,
             level_cap,
@@ -190,7 +190,7 @@ impl<T: Coord> OctTree<T> {
     }
 }
 
-impl<T: Coord> OctNode<T> {
+impl<T: Coord> OcNode<T> {
     const fn new(area: Cuboid<T>) -> Self {
         Self {
             area,
@@ -522,8 +522,8 @@ impl<T: Coord> OctNode<T> {
     }
 }
 
-impl OctTree<f64> {
-    /// Build an `OctTree<f64>` from the pixel centers of multiple `GeoTiff`s,
+impl OcTree<f64> {
+    /// Build an `OcTree<f64>` from the pixel centers of multiple `GeoTiff`s,
     /// parsing the timestamp from each filename for the z-coordinate.
     ///
     /// IDs are offset per file so they do not collide.
@@ -535,7 +535,7 @@ impl OctTree<f64> {
         let points = crate::geotiff::geotiffs_to_3d_points(geotiffs)?;
 
         let tree = Self::from_points(points, level_cap, max_depth)
-            .context("failed to build OctTree from GeoTiff files")?;
+            .context("failed to build OcTree from GeoTiff files")?;
         Ok(tree)
     }
 }

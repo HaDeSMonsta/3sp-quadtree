@@ -1,4 +1,4 @@
-# Created OctTree with 100 `level_cap` and _Levels_ `max_depth`
+# Created OcTree with 100 `level_cap` and _Levels_ `max_depth`
 
 | Levels | Time | Memory |
 |--------|------|--------|

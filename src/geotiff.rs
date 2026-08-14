@@ -1,6 +1,6 @@
 use crate::TiffMapErr;
 use crate::geometry::{Point2D, Point3D};
-use crate::oct_tree::DataPoint3D;
+use crate::oc_tree::DataPoint3D;
 use crate::quad_tree::DataPoint2D;
 use color_eyre::Result;
 use color_eyre::eyre::{Context, bail};

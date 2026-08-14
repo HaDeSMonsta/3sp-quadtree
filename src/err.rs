@@ -1,5 +1,5 @@
 use crate::geometry::{Coord, Cuboid, Point2D, Point3D, Rect};
-use crate::oct_tree::DataPoint3D;
+use crate::oc_tree::DataPoint3D;
 use crate::quad_tree::DataPoint2D;
 use thiserror::Error;
 

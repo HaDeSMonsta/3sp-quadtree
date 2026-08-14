@@ -1,7 +1,7 @@
 use crate::geometry::{Coord, Cuboid};
-use crate::oct_tree::{DataPoint3D, OctNode, OctTree};
+use crate::oc_tree::{DataPoint3D, OcNode, OcTree};
 
-impl<T: Coord> OctTree<T> {
+impl<T: Coord> OcTree<T> {
     pub fn range(&self, query: &Cuboid<T>) -> Vec<&DataPoint3D<T>> {
         let mut result = Vec::new();
         self.root.range_inner(query, &mut result);
@@ -9,7 +9,7 @@ impl<T: Coord> OctTree<T> {
     }
 }
 
-impl<T: Coord> OctNode<T> {
+impl<T: Coord> OcNode<T> {
     fn range_inner<'a>(&'a self, query: &Cuboid<T>, result: &mut Vec<&'a DataPoint3D<T>>) {
         if !cuboids_intersect(&self.area, query) {
             return;
@@ -46,11 +46,11 @@ mod tests {
     use super::*;
     use crate::geometry::{Cuboid, Point3D};
 
-    fn make_tree() -> OctTree<f64> {
-        OctTree::from_coords(0.0, 0.0, 0.0, 100.0, 100.0, 100.0, 4, 10).unwrap()
+    fn make_tree() -> OcTree<f64> {
+        OcTree::from_coords(0.0, 0.0, 0.0, 100.0, 100.0, 100.0, 4, 10).unwrap()
     }
 
-    fn insert(tree: &mut OctTree<f64>, id: usize, x: f64, y: f64, z: f64) {
+    fn insert(tree: &mut OcTree<f64>, id: usize, x: f64, y: f64, z: f64) {
         tree.insert(DataPoint3D::new_coords(id, x, y, z)).unwrap();
     }
 
@@ -143,7 +143,7 @@ mod tests {
 
     #[test]
     fn range_integer_coords() {
-        let mut tree = OctTree::from_coords(0, 0, 0, 100, 100, 100, 4, 10).unwrap();
+        let mut tree = OcTree::from_coords(0, 0, 0, 100, 100, 100, 4, 10).unwrap();
         tree.insert(DataPoint3D::new_coords(0, 10, 10, 10)).unwrap();
         tree.insert(DataPoint3D::new_coords(1, 20, 20, 20)).unwrap();
         tree.insert(DataPoint3D::new_coords(2, 90, 90, 90)).unwrap();

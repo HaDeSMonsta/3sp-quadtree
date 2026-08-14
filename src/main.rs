@@ -16,7 +16,7 @@ use color_eyre::Result;
 use color_eyre::eyre::{Context, ContextCompat};
 use geotiff::GeoTiff;
 use quadtree::geometry::Point2D;
-use quadtree::oct_tree::OctTree;
+use quadtree::oc_tree::OcTree;
 use quadtree::quad_tree::QuadTree;
 use rayon::prelude::*;
 use std::fs::{self, File};
@@ -58,7 +58,7 @@ fn main() -> Result<()> {
         .iter()
         .map(|(t, f)| (t, f.as_str()))
         .collect::<Vec<_>>();
-    let treee = OctTree::from_geotiffs(&tiff_refs, args.cap, args.depth)
+    let treee = OcTree::from_geotiffs(&tiff_refs, args.cap, args.depth)
         .context("failed to create tree from tiffs")?;
     info!("created tree with {} elements", treee.len());
 
