@@ -39,10 +39,10 @@ pub struct DataPoint2D<T: Coord> {
 }
 
 impl<T: Coord> QuadTree<T> {
-    pub fn new(area: Rect<T>, level_cap: usize, max_depth: usize) -> Self {
+    pub const fn new(area: Rect<T>, level_cap: usize, max_depth: usize) -> Self {
         Self {
             area,
-            points: Vec::with_capacity(level_cap),
+            points: Vec::new(),
             len: 0,
             level_cap,
             children: None,
@@ -249,10 +249,10 @@ impl<T: Coord> QuadTree<T> {
         Ok(())
     }
 
-    fn new_child(area: Rect<T>, level_cap: usize, depth: usize, max_depth: usize) -> Self {
+    const fn new_child(area: Rect<T>, level_cap: usize, depth: usize, max_depth: usize) -> Self {
         Self {
             area,
-            points: Vec::with_capacity(level_cap),
+            points: Vec::new(),
             len: 0,
             level_cap,
             children: None,
@@ -425,6 +425,7 @@ impl<T: Coord> QuadTree<T> {
                 .insert(point)
                 .context("failed to insert valid point into newly created child")?;
         }
+        self.points.shrink_to_fit();
 
         self.children = Some(Box::new(children));
 

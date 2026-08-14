@@ -41,9 +41,9 @@ pub struct DataPoint3D<T: Coord> {
 }
 
 impl<T: Coord> OctTree<T> {
-    pub fn new(area: Cuboid<T>, level_cap: usize, max_depth: usize) -> Self {
+    pub const fn new(area: Cuboid<T>, level_cap: usize, max_depth: usize) -> Self {
         Self {
-            root: OctNode::new(area, level_cap),
+            root: OctNode::new(area),
             level_cap,
             max_depth,
         }
@@ -191,20 +191,20 @@ impl<T: Coord> OctTree<T> {
 }
 
 impl<T: Coord> OctNode<T> {
-    fn new(area: Cuboid<T>, level_cap: usize) -> Self {
+    const fn new(area: Cuboid<T>) -> Self {
         Self {
             area,
-            points: Vec::with_capacity(level_cap),
+            points: Vec::new(),
             len: 0,
             children: None,
             depth: 0,
         }
     }
 
-    fn new_child(area: Cuboid<T>, level_cap: usize, depth: usize) -> Self {
+    const fn new_child(area: Cuboid<T>, depth: usize) -> Self {
         Self {
             area,
-            points: Vec::with_capacity(level_cap),
+            points: Vec::new(),
             len: 0,
             children: None,
             depth,
@@ -219,7 +219,7 @@ impl<T: Coord> OctNode<T> {
         max_depth: usize,
     ) -> Result<Self> {
         if points.len() <= level_cap || depth == max_depth || !Self::is_subdividable_cube(&cube) {
-            let mut node = Self::new_child(cube, level_cap, depth);
+            let mut node = Self::new_child(cube, depth);
             node.points.append(&mut points);
             node.len = node.points.len();
             return Ok(node);
@@ -326,7 +326,7 @@ impl<T: Coord> OctNode<T> {
             ]
         };
 
-        let mut node = Self::new_child(cube, level_cap, depth);
+        let mut node = Self::new_child(cube, depth);
         node.len = children.iter().map(|c| c.len).sum();
         node.children = Some(Box::new(children));
         Ok(node)
@@ -457,14 +457,14 @@ impl<T: Coord> OctNode<T> {
             .context("failed to create cube 7")?;
 
         let mut children = [
-            Self::new_child(cube_0, level_cap, self.depth + 1),
-            Self::new_child(cube_1, level_cap, self.depth + 1),
-            Self::new_child(cube_2, level_cap, self.depth + 1),
-            Self::new_child(cube_3, level_cap, self.depth + 1),
-            Self::new_child(cube_4, level_cap, self.depth + 1),
-            Self::new_child(cube_5, level_cap, self.depth + 1),
-            Self::new_child(cube_6, level_cap, self.depth + 1),
-            Self::new_child(cube_7, level_cap, self.depth + 1),
+            Self::new_child(cube_0, self.depth + 1),
+            Self::new_child(cube_1, self.depth + 1),
+            Self::new_child(cube_2, self.depth + 1),
+            Self::new_child(cube_3, self.depth + 1),
+            Self::new_child(cube_4, self.depth + 1),
+            Self::new_child(cube_5, self.depth + 1),
+            Self::new_child(cube_6, self.depth + 1),
+            Self::new_child(cube_7, self.depth + 1),
         ];
 
         for point in self.points.drain(..) {
@@ -473,6 +473,7 @@ impl<T: Coord> OctNode<T> {
                 .insert(point, max_depth, level_cap)
                 .context("failed to insert valid point in newly created child")?;
         }
+        self.points.shrink_to_fit();
 
         self.children = Some(Box::new(children));
 
