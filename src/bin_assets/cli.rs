@@ -16,6 +16,12 @@ pub struct Args {
     #[clap(long, default_value_t = log_lvl())]
     /// Log level
     pub log_lvl: String,
+    #[clap(short, long, default_value_t = 100)]
+    /// Max items per level
+    pub cap: usize,
+    #[clap(short, long, default_value_t = 100)]
+    /// Max levels per tree
+    pub depth: usize,
 }
 
 #[derive(Debug, Subcommand)]

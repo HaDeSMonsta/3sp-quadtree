@@ -39,7 +39,7 @@ const TIFF_DIR: &str = "dwd-geotiff-epsg4326/";
 #[allow(unreachable_code)]
 fn main() -> Result<()> {
     // At some point it will probably hold a query
-    let _args = setup().context("setup failed")?;
+    let args = setup().context("setup failed")?;
 
     info!("{BIN_NAME} - {BIN_VERSION}");
 
@@ -76,8 +76,8 @@ fn main() -> Result<()> {
         .iter()
         .map(|(t, f)| (t, f.as_str()))
         .collect::<Vec<_>>();
-    let treee =
-        OctTree::from_geotiffs(&tiff_refs, 100, 5).context("failed to create tree from tiffs")?;
+    let treee = OctTree::from_geotiffs(&tiff_refs, args.cap, args.depth)
+        .context("failed to create tree from tiffs")?;
     info!("created tree with {} elements", treee.len());
 
     let tif_elapsed = tif_start.elapsed();
