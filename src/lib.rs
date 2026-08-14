@@ -46,7 +46,6 @@ const PARALLEL_THRESHOLD: usize = 2_usize.pow(13);
 /// Helper function to set project specific values that are true for all used thread pools
 fn thread_pool() -> color_eyre::Result<rayon::ThreadPool> {
     rayon::ThreadPoolBuilder::new()
-        .use_current_thread()
         .build()
         .context("failed to build rayon threadpool")
 }
