@@ -18,6 +18,7 @@ use geotiff::GeoTiff;
 use quadtree::geometry::Point2D;
 use quadtree::oct_tree::OctTree;
 use quadtree::quad_tree::QuadTree;
+use rayon::prelude::*;
 use std::fs::{self, File};
 use std::io;
 use std::io::Write;
@@ -45,32 +46,13 @@ fn main() -> Result<()> {
 
     let tif_start = Instant::now();
 
-    let tiff_cap = fs::read_dir(TIFF_DIR)
-        .context("failed to read tiff dir")?
-        .count();
-    let mut tiffs = Vec::with_capacity(tiff_cap);
+    let tiffs = rayon::ThreadPoolBuilder::new()
+        .build()
+        .context("failed to build rayon threadpool")?
+        .install(read_tiffs)
+        .context("failed to read tiffs")?;
 
-    for entry in fs::read_dir(TIFF_DIR).context("failed to read dir")? {
-        let path = entry.context("failed to read entry")?.path();
-        if !path.is_file() || path.extension().is_none_or(|e| e != "tif") {
-            continue;
-        }
-
-        let filename = path
-            .file_name()
-            .context("no filename")?
-            .to_str()
-            .context("invalid filename")?
-            .to_owned();
-
-        let file =
-            File::open(path.as_path()).with_context(|| format!("failed to open {path:?}"))?;
-        let tiff = GeoTiff::read(file)
-            .with_context(|| format!("failed to read tiff data from {path:?}"))?;
-        tiffs.push((tiff, filename));
-    }
-
-    info!("created {tiff_cap} tiff structs");
+    info!("created {} tiff structs", tiffs.len());
 
     let tiff_refs = tiffs
         .iter()
@@ -122,6 +104,33 @@ fn main() -> Result<()> {
     // info!(?knn);
 
     Ok(())
+}
+
+fn read_tiffs() -> Result<Vec<(GeoTiff, String)>> {
+    let tiffs = fs::read_dir(TIFF_DIR)
+        .context("failed to read tiff dir")?
+        .collect::<std::result::Result<Vec<_>, _>>()
+        .context("failed to read dir entry")?
+        .par_iter()
+        .map(std::fs::DirEntry::path)
+        .filter(|path| path.is_file() && path.extension().is_some_and(|e| e == "tif"))
+        .map(|path| {
+            let filename = path
+                .file_name()
+                .context("no filename")?
+                .to_str()
+                .context("invalid filename")?
+                .to_owned();
+
+            let file =
+                File::open(path.as_path()).with_context(|| format!("failed to open {path:?}"))?;
+            let tiff = GeoTiff::read(file)
+                .with_context(|| format!("failed to read tiff data from {path:?}"))?;
+            Ok((tiff, filename))
+        })
+        .collect::<Result<Vec<_>>>()
+        .context("failed to create tiffs/paths from file names")?;
+    Ok(tiffs)
 }
 
 fn setup() -> Result<Args> {
