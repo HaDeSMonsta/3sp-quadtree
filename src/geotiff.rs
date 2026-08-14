@@ -6,6 +6,7 @@ use color_eyre::Result;
 use color_eyre::eyre::{Context, bail};
 use jiff::civil::DateTime;
 use jiff::tz::TimeZone;
+use rayon::prelude::*;
 use std::collections::HashMap;
 
 /// Convert a `GeoTiff` raster into a flat list of pixel-center 2D points.
@@ -259,18 +260,35 @@ pub fn geotiff_to_3d_points(
 pub fn geotiffs_to_3d_points(
     geotiffs: &[(&geotiff::GeoTiff, &str)],
 ) -> Result<Vec<DataPoint3D<f64>>> {
-    let mut points = Vec::new();
-    let mut id_offset = 0;
-    for &(tiff, filename) in geotiffs {
-        let time = filename_to_epoch_seconds(filename)
-            .with_context(|| format!("failed to parse time from {filename}"))?;
-        let tiff_size = tiff.raster_width * tiff.raster_height;
-        let mut tiff_points = geotiff_to_3d_points(tiff, time, Some(id_offset));
-        assert_eq!(tiff_size, tiff_points.len());
-        id_offset += tiff_size;
-        points.append(&mut tiff_points);
-    }
-    Ok(points)
+    crate::thread_pool()?.install(|| {
+        let sizes = geotiffs
+            .iter()
+            .map(|(tiff, _)| tiff.raster_width * tiff.raster_height)
+            .collect::<Vec<_>>();
+        let mut offset = 0;
+        let offsets = sizes
+            .iter()
+            .map(|size| {
+                let cur = offset;
+                offset += size;
+                cur
+            })
+            .collect::<Vec<_>>();
+
+        let tiff_points = geotiffs
+            .par_iter()
+            .enumerate()
+            .map(|(i, &(tiff, filename))| {
+                let time = filename_to_epoch_seconds(filename)
+                    .with_context(|| format!("failed to parse time from {filename}"))?;
+                let points = geotiff_to_3d_points(tiff, time, Some(offsets[i]));
+                assert_eq!(sizes[i], points.len());
+                Ok(points)
+            })
+            .collect::<Result<Vec<_>>>()?;
+
+        Ok(tiff_points.into_iter().flatten().collect())
+    })
 }
 
 #[cfg(test)]
