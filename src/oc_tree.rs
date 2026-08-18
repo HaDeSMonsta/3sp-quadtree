@@ -6,6 +6,9 @@ use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
 use std::fs;
+use std::fs::File;
+use std::io::BufWriter;
+use std::io::Write as _;
 use std::path::Path;
 use tracing::debug;
 
@@ -183,6 +186,24 @@ impl<T: Coord> OcTree<T> {
 
     pub fn nodes(&self) -> usize {
         self.root.nodes()
+    }
+
+    /// Prints the structure of the octree to a file
+    ///
+    /// # Arguments
+    ///
+    /// * `file_name`: The file name to save the contents to
+    ///
+    /// returns: Result<(), Report> If the file cannot be created or written to
+    pub fn print_to_file<P: AsRef<Path> + Debug>(&self, file_name: P) -> Result<()> {
+        // Printing takes ~70s, so let's write instead (>3G)
+        let file = File::create(file_name.as_ref())
+            .with_context(|| format!("failed to create {file_name:?}"))?;
+        let mut writer = BufWriter::new(file);
+        self.root
+            .print_structure_inner("", true, "root", &mut writer)
+            .with_context(|| format!("failed to store contents in {file_name:?}"))?;
+        Ok(())
     }
 
     pub fn contains(&self, data_point: &DataPoint3D<T>) -> bool {
@@ -509,6 +530,55 @@ impl<T: Coord> OcNode<T> {
             sum
         });
         child_cnt + 1
+    }
+
+    fn print_structure_inner(
+        &self,
+        prefix: &str,
+        is_last: bool,
+        name: &str,
+        writer: &mut BufWriter<File>,
+    ) -> Result<()> {
+        let connector = if is_last { "└──" } else { "├──" };
+        let elements = if self.children.is_some() {
+            String::new()
+        } else {
+            format!(" {} elements", self.len)
+        };
+
+        // println!("{prefix}{connector} {name}:{elements}");
+        writeln!(writer, "{prefix}{connector} {name}:{elements}").context("failed to write")?;
+
+        let Some(children) = &self.children else {
+            return Ok(());
+        };
+
+        let child_prefix = if is_last {
+            format!("{prefix}    ")
+        } else {
+            format!("{prefix}│   ")
+        };
+
+        let child_names = [
+            "upper-left-past",
+            "upper-right-past",
+            "lower-left-past",
+            "lower-right-past",
+            "upper-left-fut",
+            "upper-right-fut",
+            "lower-left-fut",
+            "lower-right-fut",
+        ];
+
+        for (idx, child) in children.iter().enumerate() {
+            child.print_structure_inner(
+                &child_prefix,
+                idx == children.len() - 1,
+                child_names[idx],
+                writer,
+            )?;
+        }
+        Ok(())
     }
 
     pub fn contains(&self, data_point: &DataPoint3D<T>) -> bool {

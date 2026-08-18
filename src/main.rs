@@ -71,6 +71,11 @@ fn main() -> Result<()> {
     io::stdin()
         .read_line(&mut input)
         .context("failed to read")?;
+    let print_start = Instant::now();
+    treee
+        .print_to_file("octree.txt")
+        .context("failed to write tree to file")?;
+    println!("printing took {:?}", print_start.elapsed());
 
     exit(0);
 
