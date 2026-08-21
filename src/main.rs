@@ -36,6 +36,7 @@ static GLOBAL: mimalloc::MiMalloc = mimalloc::MiMalloc;
 
 const BIN_NAME: &str = env!("CARGO_PKG_NAME");
 const BIN_VERSION: &str = env!("CARGO_PKG_VERSION");
+const SIMRA_DIR: &str = "simra/";
 const TIFF_DIR: &str = "dwd-geotiff-epsg4326/";
 
 #[allow(unreachable_code)]
@@ -57,14 +58,14 @@ fn read_tiffs() -> Result<Vec<(GeoTiff, String)>> {
         .collect::<std::result::Result<Vec<_>, _>>()
         .context("failed to read dir entry")?
         .par_iter()
-        .map(std::fs::DirEntry::path)
+        .map(fs::DirEntry::path)
         .filter(|path| path.is_file() && path.extension().is_some_and(|e| e == "tif"))
         .map(|path| {
             let filename = path
                 .file_name()
-                .context("no filename")?
+                .with_context(|| format!("no filename: {path:?}"))?
                 .to_str()
-                .context("invalid filename")?
+                .with_context(|| format!("invalid filenam: {path:?}"))?
                 .to_owned();
 
             let file =
@@ -106,7 +107,7 @@ fn setup() -> Result<Args> {
 
 #[instrument(skip_all)]
 fn quadtree(cap: usize, depth: usize) -> Result<QuadTree<f64>> {
-    let data = simra::parse("simra").context("failed to parse simra data")?;
+    let data = simra::parse(SIMRA_DIR).context("failed to parse simra data")?;
 
     info!("read {} simra points", data.len());
 
