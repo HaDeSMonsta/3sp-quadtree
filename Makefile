@@ -3,22 +3,29 @@ DBG_BIN := target/debug/$(BIN)
 REL_BIN := target/release/$(BIN)
 SOURCES := $(shell find src -name '*.rs') Cargo.toml Cargo.lock
 
+FLAGS := --log-lvl debug
+#BACKTRACE := RUST_BACKTRACE=1
+
 CAP ?=
-CAP_FLAG := $(if $(CAP),--cap $(CAP))
+ifneq ($(CAP),)
+FLAGS += --cap $(CAP)
+endif
 
 DEPTH ?=
-DEPTH_FLAG := $(if $(DEPTH),--depth $(DEPTH))
+ifneq ($(DEPTH),)
+FLAGS += --depth $(DEPTH)
+endif
 
 .PHONY: default
 default: debug release
 
 .PHONY: run
 run: debug
-	$(DBG_BIN) $(CAP_FLAG) $(DEPTH_FLAG)
+	$(BACKTRACE) $(DBG_BIN) $(FLAGS)
 
 .PHONY: run-release
 run-release: release
-	$(REL_BIN) $(CAP_FLAG) $(DEPTH_FLAG)
+	$(BACKTRACE) $(REL_BIN) $(FLAGS)
 
 .PHONY: check
 check:
