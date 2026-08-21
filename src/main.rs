@@ -9,6 +9,9 @@
     clippy::needless_raw_string_hashes
 )]
 
+// CONSIDER: Find by id (linear search through tree)
+// CONSIDER: Iterator (to use in find by id and in general)
+
 use crate::bin_assets::cli::{Args, Cmd};
 use crate::bin_assets::simra;
 use clap::{CommandFactory, Parser};
@@ -18,6 +21,7 @@ use geotiff::GeoTiff;
 use quadtree::oc_tree::OcTree;
 use quadtree::quad_tree::QuadTree;
 use rayon::prelude::*;
+use std::collections::HashMap;
 use std::fs::{self, File};
 use std::io;
 use std::process::exit;
@@ -41,8 +45,8 @@ fn main() -> Result<()> {
 
     info!("{BIN_NAME} - {BIN_VERSION}");
 
-    let quadtree = quadtree(args.cap, args.depth).context("failed to create quadtree")?;
-    let octree = octree(args.cap, args.depth).context("failed to create octree")?;
+    let _quadtree = quadtree(args.cap, args.depth).context("failed to create quadtree")?;
+    let (_octree, _ids) = octree(args.cap, args.depth).context("failed to create octree")?;
 
     Ok(())
 }
@@ -114,7 +118,7 @@ fn quadtree(cap: usize, depth: usize) -> Result<QuadTree<f64>> {
 }
 
 #[instrument(skip_all)]
-fn octree(cap: usize, depth: usize) -> Result<OcTree<f64>> {
+fn octree(cap: usize, depth: usize) -> Result<(OcTree<f64>, HashMap<usize, f32>)> {
     let tiffs = rayon::ThreadPoolBuilder::new()
         .build()
         .context("failed to build rayon threadpool")?
@@ -127,9 +131,12 @@ fn octree(cap: usize, depth: usize) -> Result<OcTree<f64>> {
         .iter()
         .map(|(t, f)| (t, f.as_str()))
         .collect::<Vec<_>>();
-    let treee = OcTree::from_geotiffs(&tiff_refs, cap, depth)
-        .context("failed to create tree from tiffs")?;
+
+    let (points, map) = quadtree::geotiff::geotiffs_to_3d_points_mapping(&tiff_refs)
+        .context("failed to parse geotiffs to 3d points")?;
+    let treee =
+        OcTree::from_points(points, cap, depth).context("failed to create tree from tiffs")?;
     info!("created tree with {} elements", treee.len());
 
-    Ok(treee)
+    Ok((treee, map))
 }

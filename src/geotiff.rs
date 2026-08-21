@@ -8,6 +8,7 @@ use jiff::civil::DateTime;
 use jiff::tz::TimeZone;
 use rayon::prelude::*;
 use std::collections::HashMap;
+use std::sync::Mutex;
 
 /// Convert a `GeoTiff` raster into a flat list of pixel-center 2D points.
 ///
@@ -238,6 +239,49 @@ pub fn geotiff_to_3d_points(
     points
 }
 
+#[allow(clippy::cast_precision_loss)]
+#[must_use]
+pub fn geotiff_to_3d_points_mapping<S: ::std::hash::BuildHasher>(
+    geotiff: &geotiff::GeoTiff,
+    epoch_seconds: f64,
+    id_offset: Option<usize>,
+    map: &Mutex<HashMap<usize, f32, S>>,
+) -> Vec<DataPoint3D<f64>> {
+    let id_offset = id_offset.unwrap_or(0);
+    let extent = geotiff.model_extent();
+    let width = geotiff.raster_width;
+    let height = geotiff.raster_height;
+
+    let min_x = extent.min().x;
+    let min_y = extent.min().y;
+    let max_x = extent.max().x;
+    let max_y = extent.max().y;
+
+    let dx = (max_x - min_x) / width as f64;
+    let dy = (max_y - min_y) / height as f64;
+
+    let mut points = Vec::with_capacity(width * height);
+    for row in 0..height {
+        for col in 0..width {
+            let x = (col as f64 + 0.5).mul_add(dx, min_x);
+            let y = (row as f64 + 0.5).mul_add(-dy, max_y);
+            let id = id_offset + row * width + col;
+            points.push(DataPoint3D::new(id, Point3D::new(x, y, epoch_seconds)));
+
+            match geotiff.get_value_at::<f32>(&geo_types::Coord { x, y }, 0) {
+                Some(0.0) => {}
+                Some(val) => {
+                    let mut guard = map.lock().expect("we won't panic");
+                    guard.insert(id, val);
+                }
+                None => panic!("no value @ {x}/{y}"),
+            }
+        }
+    }
+
+    points
+}
+
 /// Convert a slice of `(GeoTiff, filename)` pairs into a single flat list of
 /// pixel-center 3D points, parsing each filename's embedded `DWD` timestamp as
 /// the z / time dimension.
@@ -288,6 +332,45 @@ pub fn geotiffs_to_3d_points(
             .collect::<Result<Vec<_>>>()?;
 
         Ok(tiff_points.into_iter().flatten().collect())
+    })
+}
+
+#[allow(clippy::type_complexity)] // Yeah, this is not good
+pub fn geotiffs_to_3d_points_mapping(
+    geotiffs: &[(&geotiff::GeoTiff, &str)],
+) -> Result<(Vec<DataPoint3D<f64>>, HashMap<usize, f32>)> {
+    let map = Mutex::new(HashMap::new());
+
+    crate::thread_pool()?.install(|| {
+        let sizes = geotiffs
+            .iter()
+            .map(|(tiff, _)| tiff.raster_width * tiff.raster_height)
+            .collect::<Vec<_>>();
+        let mut offset = 0;
+        let offsets = sizes
+            .iter()
+            .map(|size| {
+                let cur = offset;
+                offset += size;
+                cur
+            })
+            .collect::<Vec<_>>();
+
+        let tiff_points = geotiffs
+            .par_iter()
+            .enumerate()
+            .map(|(i, &(tiff, filename))| {
+                let time = filename_to_epoch_seconds(filename)
+                    .with_context(|| format!("failed to parse time from {filename}"))?;
+                let points = geotiff_to_3d_points_mapping(tiff, time, Some(offsets[i]), &map);
+                Ok(points)
+            })
+            .collect::<Result<Vec<_>>>()?;
+
+        Ok((
+            tiff_points.into_iter().flatten().collect(),
+            map.into_inner().context("surely, this won't happen")?,
+        ))
     })
 }
 

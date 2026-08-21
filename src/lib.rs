@@ -7,7 +7,8 @@
     clippy::cognitive_complexity,
     clippy::too_many_lines,
     clippy::needless_raw_string_hashes,
-    clippy::missing_errors_doc // TODO Remove and document
+    clippy::missing_errors_doc, // TODO Remove and document
+    clippy::missing_panics_doc, // Do I really care?
 )]
 
 use color_eyre::eyre::Context;
@@ -34,7 +35,7 @@ macro_rules! axis_dist {
 
 mod err;
 pub mod geometry;
-mod geotiff;
+pub mod geotiff;
 pub mod oc;
 pub mod oc_tree;
 pub mod quad;
