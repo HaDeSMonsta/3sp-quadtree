@@ -159,7 +159,7 @@ impl<T: Coord> QuadTree<T> {
         depth: usize,
         max_depth: usize,
     ) -> Result<Self> {
-        if points.len() <= level_cap || depth == max_depth || !Self::is_subdividable_rect(&area) {
+        if points.len() <= level_cap || depth == max_depth || !Self::is_subdividable_rect(area) {
             let mut tree = Self::new_child(area, level_cap, depth, max_depth);
 
             tree.points.append(&mut points);
@@ -187,7 +187,7 @@ impl<T: Coord> QuadTree<T> {
         let mut q3 = Vec::new();
 
         for point in points {
-            match Self::child_idx_for_point(&area, &point.point) {
+            match Self::child_idx_for_point(area, point.point) {
                 0 => q0.push(point),
                 1 => q1.push(point),
                 2 => q2.push(point),
@@ -289,9 +289,9 @@ impl<T: Coord> QuadTree<T> {
     /// tree.insert(dp).expect("failed to insert");
     /// ```
     pub fn insert(&mut self, data_point: DataPoint2D<T>) -> Result<(), TreeErr2D<T>> {
-        if !self.area.contains(&data_point.point) {
+        if !self.area.contains(data_point.point) {
             return Err(TreeErr2D::InsertionOutOfBounds {
-                rect: self.area.clone(),
+                rect: self.area,
                 data_point,
             });
         }
@@ -313,7 +313,7 @@ impl<T: Coord> QuadTree<T> {
                 .expect("failed to subdivide after checking it is safe to");
         }
 
-        let idx = Self::child_idx_for_point(&self.area, &data_point.point);
+                let idx = Self::child_idx_for_point(self.area, data_point.point);
         // no self.children.as_mut().expect() because I want a formatted error
         let Some(child) = &mut self.children else {
             panic!(
@@ -385,10 +385,10 @@ impl<T: Coord> QuadTree<T> {
     // Solution: Do not divide if floats don't play nicely
     // CONSIDER: Before inserting, just shift the values so this never executes (but keep as a fallback (or remove, because less paths to check))
     fn is_subdividable(&self) -> bool {
-        Self::is_subdividable_rect(&self.area)
+        Self::is_subdividable_rect(self.area)
     }
 
-    fn is_subdividable_rect(rect: &Rect<T>) -> bool {
+    fn is_subdividable_rect(rect: Rect<T>) -> bool {
         let (cx, cy) = rect.get_centers();
 
         cx > rect.lower.x && cx < rect.upper.x && cy > rect.lower.y && cy < rect.upper.y
@@ -400,7 +400,7 @@ impl<T: Coord> QuadTree<T> {
             bail!("tried to subdivide at max depth, should always be checked before call");
         }
 
-        let rect = &self.area;
+        let rect = self.area;
         let (cx, cy) = rect.get_centers();
 
         let rect_0 = Rect::from_coords(rect.lower.x, cy, cx, rect.upper.y)
@@ -420,7 +420,7 @@ impl<T: Coord> QuadTree<T> {
         ];
 
         for point in self.points.drain(..) {
-            let idx = Self::child_idx_for_point(&self.area, &point.point);
+            let idx = Self::child_idx_for_point(self.area, point.point);
             children[idx]
                 .insert(point)
                 .context("failed to insert valid point into newly created child")?;
@@ -433,7 +433,7 @@ impl<T: Coord> QuadTree<T> {
     }
 
     #[allow(clippy::similar_names)]
-    fn child_idx_for_point(rect: &Rect<T>, point: &Point2D<T>) -> usize {
+    fn child_idx_for_point(rect: Rect<T>, point: Point2D<T>) -> usize {
         let (cx, cy) = rect.get_centers();
 
         let mut ret = 0;
@@ -500,23 +500,23 @@ impl<T: Coord> QuadTree<T> {
     }
 
     // Use this if you care about the id
-    pub fn contains_dp(&self, data_point: &DataPoint2D<T>) -> bool {
+    pub fn contains_dp(&self, data_point: DataPoint2D<T>) -> bool {
         self.children.as_ref().map_or_else(
-            || self.points.iter().any(|dp| dp == data_point),
+            || self.points.contains(&data_point),
             |children| {
-                let idx = Self::child_idx_for_point(&self.area, &data_point.point);
-                children[idx].contains_dp(&data_point)
+                let idx = Self::child_idx_for_point(self.area, data_point.point);
+                children[idx].contains_dp(data_point)
             },
         )
     }
 
     // Use this if you only care about the coords
-    pub fn contains_p(&self, point: &Point2D<T>) -> bool {
+    pub fn contains_p(&self, point: Point2D<T>) -> bool {
         self.children.as_ref().map_or_else(
-            || self.points.iter().any(|dp| dp.point == *point),
+            || self.points.iter().any(|dp| dp.point == point),
             |children| {
-                let idx = Self::child_idx_for_point(&self.area, &point);
-                children[idx].contains_p(&point)
+                let idx = Self::child_idx_for_point(self.area, point);
+                children[idx].contains_p(point)
             },
         )
     }
@@ -558,8 +558,8 @@ impl<T: Coord> DataPoint2D<T> {
         self.id
     }
 
-    pub const fn point(&self) -> &Point2D<T> {
-        &self.point
+    pub const fn point(&self) -> Point2D<T> {
+        self.point
     }
 
     pub const fn coords(&self) -> (T, T) {

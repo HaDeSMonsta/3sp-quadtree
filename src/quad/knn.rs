@@ -62,12 +62,12 @@ impl<T: Coord> Ord for CandidateNode<'_, T> {
 }
 
 impl<T: Coord> QuadTree<T> {
-    pub fn nn(&self, query: &Point2D<T>) -> Option<&DataPoint2D<T>> {
+    pub fn nn(&self, query: Point2D<T>) -> Option<&DataPoint2D<T>> {
         self.knn(query, 1).pop()
     }
 
     // Thoughts: Point because it doesn't have to be included
-    pub fn knn(&self, query: &Point2D<T>, k: usize) -> Vec<&DataPoint2D<T>> {
+    pub fn knn(&self, query: Point2D<T>, k: usize) -> Vec<&DataPoint2D<T>> {
         if k == 0 {
             return Vec::new();
         }
@@ -76,7 +76,7 @@ impl<T: Coord> QuadTree<T> {
         let mut best: BinaryHeap<BestNeighbour<T>> = BinaryHeap::with_capacity(k + 1);
 
         candidates.push(CandidateNode {
-            min_dist2: dist2_point_rect(query, &self.area),
+            min_dist2: dist2_point_rect(query, self.area),
             node: self,
         });
 
@@ -91,7 +91,7 @@ impl<T: Coord> QuadTree<T> {
 
             if let Some(children) = &candidate.node.children {
                 for child in children.iter() {
-                    let min_dist2 = dist2_point_rect(query, &child.area);
+                    let min_dist2 = dist2_point_rect(query, child.area);
 
                     if best.len() < k || best.peek().is_some_and(|worst| min_dist2 < worst.dist2) {
                         candidates.push(CandidateNode {
@@ -102,7 +102,7 @@ impl<T: Coord> QuadTree<T> {
                 }
             } else {
                 for data_point in &candidate.node.points {
-                    let dist2 = dist2_point_point(query, &data_point.point);
+                    let dist2 = dist2_point_point(query, data_point.point);
 
                     if best.len() < k {
                         best.push(BestNeighbour { dist2, data_point });
@@ -132,7 +132,7 @@ impl<T: Coord> QuadTree<T> {
 }
 
 #[inline]
-fn dist2_point_point<T: Coord>(a: &Point2D<T>, b: &Point2D<T>) -> T {
+fn dist2_point_point<T: Coord>(a: Point2D<T>, b: Point2D<T>) -> T {
     let dx = diff!(a.x, b.x);
     let dy = diff!(a.y, b.y);
 
@@ -140,7 +140,7 @@ fn dist2_point_point<T: Coord>(a: &Point2D<T>, b: &Point2D<T>) -> T {
 }
 
 #[inline]
-fn dist2_point_rect<T: Coord>(point: &Point2D<T>, rect: &Rect<T>) -> T {
+fn dist2_point_rect<T: Coord>(point: Point2D<T>, rect: Rect<T>) -> T {
     let dx = axis_dist!(point.x, rect.lower.x, rect.upper.x);
     let dy = axis_dist!(point.y, rect.lower.y, rect.upper.y);
 
@@ -173,7 +173,7 @@ mod tests {
         insert(&mut tree, 1, 20.0, 20.0);
         insert(&mut tree, 2, 90.0, 90.0);
 
-        let result = tree.knn(&query(12.0, 12.0), 1);
+        let result = tree.knn(query(12.0, 12.0), 1);
 
         assert_eq!(result.len(), 1);
         assert_eq!(result[0].id(), 0);
@@ -186,7 +186,7 @@ mod tests {
         insert(&mut tree, 1, 20.0, 20.0); // second
         insert(&mut tree, 2, 90.0, 90.0); // farthest
 
-        let result = tree.knn(&query(5.0, 5.0), 2);
+        let result = tree.knn(query(5.0, 5.0), 2);
 
         assert_eq!(result.len(), 2);
         assert_eq!(result[0].id(), 0);
@@ -199,7 +199,7 @@ mod tests {
         insert(&mut tree, 0, 10.0, 10.0);
         insert(&mut tree, 1, 50.0, 50.0);
 
-        let result = tree.knn(&query(5.0, 5.0), 100);
+        let result = tree.knn(query(5.0, 5.0), 100);
 
         assert_eq!(result.len(), 2);
     }
@@ -211,7 +211,7 @@ mod tests {
         let mut tree = make_tree();
         insert(&mut tree, 0, 10.0, 10.0);
 
-        let result = tree.knn(&query(10.0, 10.0), 0);
+        let result = tree.knn(query(10.0, 10.0), 0);
 
         assert!(result.is_empty());
     }
@@ -220,7 +220,7 @@ mod tests {
     fn knn_empty_tree_returns_empty() {
         let tree = make_tree();
 
-        let result = tree.knn(&query(50.0, 50.0), 3);
+        let result = tree.knn(query(50.0, 50.0), 3);
 
         assert!(result.is_empty());
     }
@@ -231,7 +231,7 @@ mod tests {
         insert(&mut tree, 0, 30.0, 30.0);
         insert(&mut tree, 1, 60.0, 60.0);
 
-        let result = tree.knn(&query(30.0, 30.0), 1);
+        let result = tree.knn(query(30.0, 30.0), 1);
 
         assert_eq!(result.len(), 1);
         assert_eq!(result[0].id(), 0);
@@ -244,7 +244,7 @@ mod tests {
         insert(&mut tree, 1, 99.0, 99.0);
 
         // Query outside the tree area entirely
-        let result = tree.knn(&query(200.0, 200.0), 1);
+        let result = tree.knn(query(200.0, 200.0), 1);
 
         assert_eq!(result.len(), 1);
         assert_eq!(result[0].id(), 1);
@@ -252,7 +252,7 @@ mod tests {
 
     // --- Larger dataset for cross-checking with brute force ---
 
-    fn brute_force_knn(points: &[DataPoint2D<f64>], query: &Point2D<f64>, k: usize) -> Vec<usize> {
+    fn brute_force_knn(points: &[DataPoint2D<f64>], query: Point2D<f64>, k: usize) -> Vec<usize> {
         let mut with_dist: Vec<(usize, f64)> = points
             .iter()
             .map(|dp| {
@@ -285,8 +285,8 @@ mod tests {
         let q = query(45.0, 45.0);
         let k = 5;
 
-        let tree_result: Vec<usize> = tree.knn(&q, k).iter().map(|dp| dp.id).collect();
-        let brute_result = brute_force_knn(&all_points, &q, k);
+        let tree_result: Vec<usize> = tree.knn(q, k).iter().map(|dp| dp.id).collect();
+        let brute_result = brute_force_knn(&all_points, q, k);
 
         assert_eq!(tree_result, brute_result);
     }
@@ -310,8 +310,8 @@ mod tests {
         let q = query(1.0, 1.0);
         let k = 3;
 
-        let tree_result: Vec<usize> = tree.knn(&q, k).iter().map(|dp| dp.id).collect();
-        let brute_result = brute_force_knn(&all_points, &q, k);
+        let tree_result: Vec<usize> = tree.knn(q, k).iter().map(|dp| dp.id).collect();
+        let brute_result = brute_force_knn(&all_points, q, k);
 
         assert_eq!(tree_result, brute_result);
     }
@@ -325,7 +325,7 @@ mod tests {
         tree.insert(DataPoint2D::new_coords(1, 20, 20)).unwrap();
         tree.insert(DataPoint2D::new_coords(2, 90, 90)).unwrap();
 
-        let result = tree.knn(&Point2D::new(12, 12), 2);
+        let result = tree.knn(Point2D::new(12, 12), 2);
 
         assert_eq!(result.len(), 2);
         assert_eq!(result[0].id(), 0);

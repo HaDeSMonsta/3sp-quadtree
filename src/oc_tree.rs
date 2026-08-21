@@ -37,7 +37,7 @@ pub struct OcNode<T: Coord> {
     pub(crate) depth: usize,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct DataPoint3D<T: Coord> {
     pub id: usize,
     pub point: Point3D<T>,
@@ -206,8 +206,8 @@ impl<T: Coord> OcTree<T> {
         Ok(())
     }
 
-    pub fn contains(&self, data_point: &DataPoint3D<T>) -> bool {
-        self.root.contains(&data_point)
+    pub fn contains(&self, data_point: DataPoint3D<T>) -> bool {
+        self.root.contains(data_point)
     }
 }
 
@@ -239,7 +239,7 @@ impl<T: Coord> OcNode<T> {
         depth: usize,
         max_depth: usize,
     ) -> Result<Self> {
-        if points.len() <= level_cap || depth == max_depth || !Self::is_subdividable_cube(&cube) {
+        if points.len() <= level_cap || depth == max_depth || !Self::is_subdividable_cube(cube) {
             let mut node = Self::new_child(cube, depth);
             node.points.append(&mut points);
             node.len = node.points.len();
@@ -276,7 +276,7 @@ impl<T: Coord> OcNode<T> {
         let mut q7 = Vec::new();
 
         for point in points {
-            match Self::child_idx_for_point(&cube, &point.point) {
+            match Self::child_idx_for_point(cube, point.point) {
                 0 => q0.push(point),
                 1 => q1.push(point),
                 2 => q2.push(point),
@@ -359,9 +359,9 @@ impl<T: Coord> OcNode<T> {
         max_depth: usize,
         level_cap: usize,
     ) -> Result<(), TreeErr3D<T>> {
-        if !self.area.contains(&data_point.point) {
+        if !self.area.contains(data_point.point) {
             return Err(TreeErr3D::InsertionOutOfBounds {
-                rect: self.area.clone(),
+                rect: self.area,
                 data_point,
             });
         }
@@ -377,7 +377,7 @@ impl<T: Coord> OcNode<T> {
                 .expect("failed to subdivide after checking it is safe to do");
         }
 
-        let idx = Self::child_idx_for_point(&self.area, &data_point.point);
+        let idx = Self::child_idx_for_point(self.area, data_point.point);
         let Some(child) = &mut self.children else {
             panic!(
                 "child not found after subdivide at depth {}, max_depth={max_depth}, idx={idx}",
@@ -438,10 +438,10 @@ impl<T: Coord> OcNode<T> {
     }
 
     fn is_subdividable(&self) -> bool {
-        Self::is_subdividable_cube(&self.area)
+        Self::is_subdividable_cube(self.area)
     }
 
-    fn is_subdividable_cube(cube: &Cuboid<T>) -> bool {
+    fn is_subdividable_cube(cube: Cuboid<T>) -> bool {
         let (cx, cy, cz) = cube.get_centers();
 
         cx > cube.lower.x
@@ -457,7 +457,7 @@ impl<T: Coord> OcNode<T> {
             bail!("tried to subdivide at bax depth, should always be checked by the caller");
         }
 
-        let cube = &self.area;
+        let cube = self.area;
         let (cx, cy, cz) = cube.get_centers();
 
         let cube_0 = Cuboid::from_coords(cube.lower.x, cy, cube.lower.z, cx, cube.upper.y, cz)
@@ -489,7 +489,7 @@ impl<T: Coord> OcNode<T> {
         ];
 
         for point in self.points.drain(..) {
-            let idx = Self::child_idx_for_point(&self.area, &point.point);
+            let idx = Self::child_idx_for_point(self.area, point.point);
             children[idx]
                 .insert(point, max_depth, level_cap)
                 .context("failed to insert valid point in newly created child")?;
@@ -501,7 +501,7 @@ impl<T: Coord> OcNode<T> {
         Ok(())
     }
 
-    fn child_idx_for_point(cube: &Cuboid<T>, point: &Point3D<T>) -> usize {
+    fn child_idx_for_point(cube: Cuboid<T>, point: Point3D<T>) -> usize {
         let (cx, cy, cz) = cube.get_centers();
 
         let mut ret = 0;
@@ -581,12 +581,12 @@ impl<T: Coord> OcNode<T> {
         Ok(())
     }
 
-    pub fn contains(&self, data_point: &DataPoint3D<T>) -> bool {
+    pub fn contains(&self, data_point: DataPoint3D<T>) -> bool {
         self.children.as_ref().map_or_else(
-            || self.points.iter().any(|dp| dp == data_point),
+            || self.points.contains(&data_point),
             |children| {
-                let idx = Self::child_idx_for_point(&self.area, &data_point.point);
-                children[idx].contains(&data_point)
+                let idx = Self::child_idx_for_point(self.area, data_point.point);
+                children[idx].contains(data_point)
             },
         )
     }
@@ -624,12 +624,12 @@ impl<T: Coord> DataPoint3D<T> {
         self.id
     }
 
-    pub const fn point(&self) -> &Point3D<T> {
-        &self.point
+    pub const fn point(&self) -> Point3D<T> {
+        self.point
     }
 
     pub const fn coords(&self) -> (T, T, T) {
-        let point = &self.point;
+        let point = self.point;
         (point.x, point.y, point.z)
     }
 }

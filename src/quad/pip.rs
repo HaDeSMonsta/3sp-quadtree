@@ -54,7 +54,7 @@ impl<T: Coord> Polygon<T> {
     }
 
     #[inline]
-    pub(crate) fn contains(&self, point: &Point2D<T>) -> bool {
+    pub(crate) fn contains(&self, point: Point2D<T>) -> bool {
         let n = self.vertices.len();
 
         if n < 3
@@ -70,8 +70,8 @@ impl<T: Coord> Polygon<T> {
         let mut j = n - 1;
 
         for i in 0..n {
-            let a = &self.vertices[j];
-            let b = &self.vertices[i];
+            let a = self.vertices[j];
+            let b = self.vertices[i];
 
             if Self::point_on_segment(point, a, b) {
                 return true;
@@ -96,7 +96,7 @@ impl<T: Coord> Polygon<T> {
     }
 
     #[inline]
-    fn point_on_segment(point: &Point2D<T>, a: &Point2D<T>, b: &Point2D<T>) -> bool {
+    fn point_on_segment(point: Point2D<T>, a: Point2D<T>, b: Point2D<T>) -> bool {
         let cross = (b.x - a.x) * (point.y - a.y) - (b.y - a.y) * (point.x - a.x);
 
         cross == T::zero()
@@ -118,7 +118,7 @@ impl<T: Coord> Polygon<T> {
 }
 
 impl<T: Coord> QuadTree<T> {
-    pub fn pip(&self, point: &Point2D<T>, polygon: &Polygon<T>) -> bool {
+    pub fn pip(&self, point: Point2D<T>, polygon: &Polygon<T>) -> bool {
         polygon.contains(point)
     }
 }
@@ -154,24 +154,24 @@ mod tests {
     fn pip_square_contains_inner_point() {
         let polygon = square();
 
-        assert!(polygon.contains(&p(5.0, 5.0)));
+        assert!(polygon.contains(p(5.0, 5.0)));
     }
 
     #[test]
     fn pip_square_rejects_outside_point() {
         let polygon = square();
 
-        assert!(!polygon.contains(&p(15.0, 5.0)));
+        assert!(!polygon.contains(p(15.0, 5.0)));
     }
 
     #[test]
     fn pip_square_rejects_bbox_outside_point() {
         let polygon = square();
 
-        assert!(!polygon.contains(&p(-1.0, 5.0)));
-        assert!(!polygon.contains(&p(5.0, -1.0)));
-        assert!(!polygon.contains(&p(11.0, 5.0)));
-        assert!(!polygon.contains(&p(5.0, 11.0)));
+        assert!(!polygon.contains(p(-1.0, 5.0)));
+        assert!(!polygon.contains(p(5.0, -1.0)));
+        assert!(!polygon.contains(p(11.0, 5.0)));
+        assert!(!polygon.contains(p(5.0, 11.0)));
     }
 
     #[test]
@@ -182,8 +182,8 @@ mod tests {
 
         let query = p(5.0, 5.0);
 
-        assert!(clockwise.contains(&query));
-        assert!(counter_clockwise.contains(&query));
+        assert!(clockwise.contains(query));
+        assert!(counter_clockwise.contains(query));
     }
 
     // --- Boundary cases ---
@@ -192,30 +192,30 @@ mod tests {
     fn pip_treats_edge_as_inside() {
         let polygon = square();
 
-        assert!(polygon.contains(&p(5.0, 0.0)));
-        assert!(polygon.contains(&p(10.0, 5.0)));
-        assert!(polygon.contains(&p(5.0, 10.0)));
-        assert!(polygon.contains(&p(0.0, 5.0)));
+        assert!(polygon.contains(p(5.0, 0.0)));
+        assert!(polygon.contains(p(10.0, 5.0)));
+        assert!(polygon.contains(p(5.0, 10.0)));
+        assert!(polygon.contains(p(0.0, 5.0)));
     }
 
     #[test]
     fn pip_treats_vertices_as_inside() {
         let polygon = square();
 
-        assert!(polygon.contains(&p(0.0, 0.0)));
-        assert!(polygon.contains(&p(10.0, 0.0)));
-        assert!(polygon.contains(&p(10.0, 10.0)));
-        assert!(polygon.contains(&p(0.0, 10.0)));
+        assert!(polygon.contains(p(0.0, 0.0)));
+        assert!(polygon.contains(p(10.0, 0.0)));
+        assert!(polygon.contains(p(10.0, 10.0)));
+        assert!(polygon.contains(p(0.0, 10.0)));
     }
 
     #[test]
     fn pip_handles_points_close_to_horizontal_edges() {
         let polygon = square();
 
-        assert!(polygon.contains(&p(5.0, 0.000_001)));
-        assert!(polygon.contains(&p(5.0, 9.999_999)));
-        assert!(!polygon.contains(&p(5.0, -0.000_001)));
-        assert!(!polygon.contains(&p(5.0, 10.000_001)));
+        assert!(polygon.contains(p(5.0, 0.000_001)));
+        assert!(polygon.contains(p(5.0, 9.999_999)));
+        assert!(!polygon.contains(p(5.0, -0.000_001)));
+        assert!(!polygon.contains(p(5.0, 10.000_001)));
     }
 
     // --- Concave polygons ---
@@ -224,26 +224,26 @@ mod tests {
     fn pip_concave_polygon_contains_point_in_filled_area() {
         let polygon = concave_l_shape();
 
-        assert!(polygon.contains(&p(2.0, 2.0)));
-        assert!(polygon.contains(&p(2.0, 8.0)));
-        assert!(polygon.contains(&p(8.0, 2.0)));
+        assert!(polygon.contains(p(2.0, 2.0)));
+        assert!(polygon.contains(p(2.0, 8.0)));
+        assert!(polygon.contains(p(8.0, 2.0)));
     }
 
     #[test]
     fn pip_concave_polygon_rejects_point_in_cutout() {
         let polygon = concave_l_shape();
 
-        assert!(!polygon.contains(&p(6.0, 6.0)));
-        assert!(!polygon.contains(&p(9.0, 9.0)));
+        assert!(!polygon.contains(p(6.0, 6.0)));
+        assert!(!polygon.contains(p(9.0, 9.0)));
     }
 
     #[test]
     fn pip_concave_polygon_treats_inner_corner_boundary_as_inside() {
         let polygon = concave_l_shape();
 
-        assert!(polygon.contains(&p(4.0, 4.0)));
-        assert!(polygon.contains(&p(7.0, 4.0)));
-        assert!(polygon.contains(&p(4.0, 7.0)));
+        assert!(polygon.contains(p(4.0, 4.0)));
+        assert!(polygon.contains(p(7.0, 4.0)));
+        assert!(polygon.contains(p(4.0, 7.0)));
     }
 
     // --- Holes / doughnut-style composition ---
@@ -257,9 +257,9 @@ mod tests {
         let in_hole = p(5.0, 5.0);
         let outside = p(12.0, 5.0);
 
-        assert!(outer.contains(&in_shell) && !hole.contains(&in_shell));
-        assert!(outer.contains(&in_hole) && hole.contains(&in_hole));
-        assert!(!outer.contains(&outside));
+        assert!(outer.contains(in_shell) && !hole.contains(in_shell));
+        assert!(outer.contains(in_hole) && hole.contains(in_hole));
+        assert!(!outer.contains(outside));
     }
 
     // --- Edge cases ---
@@ -282,8 +282,8 @@ mod tests {
         ])
         .unwrap();
 
-        assert!(polygon.contains(&p(5.0, 5.0)));
-        assert!(!polygon.contains(&p(15.0, 5.0)));
+        assert!(polygon.contains(p(5.0, 5.0)));
+        assert!(!polygon.contains(p(15.0, 5.0)));
     }
 
     // --- Wrapper API ---
@@ -293,8 +293,8 @@ mod tests {
         let tree = QuadTree::from_coords(0.0, 0.0, 100.0, 100.0, 4, 10).unwrap();
         let polygon = square();
 
-        assert!(tree.pip(&p(5.0, 5.0), &polygon));
-        assert!(!tree.pip(&p(15.0, 5.0), &polygon));
+        assert!(tree.pip(p(5.0, 5.0), &polygon));
+        assert!(!tree.pip(p(15.0, 5.0), &polygon));
     }
 
     // --- Integer coordinates ---
@@ -309,8 +309,8 @@ mod tests {
         ])
         .unwrap();
 
-        assert!(polygon.contains(&Point2D::new(5, 5)));
-        assert!(polygon.contains(&Point2D::new(10, 5)));
-        assert!(!polygon.contains(&Point2D::new(15, 5)));
+        assert!(polygon.contains(Point2D::new(5, 5)));
+        assert!(polygon.contains(Point2D::new(10, 5)));
+        assert!(!polygon.contains(Point2D::new(15, 5)));
     }
 }

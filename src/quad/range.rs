@@ -2,14 +2,14 @@ use crate::geometry::{Coord, Rect};
 use crate::quad_tree::{DataPoint2D, QuadTree};
 
 impl<T: Coord> QuadTree<T> {
-    pub fn range(&self, query: &Rect<T>) -> Vec<&DataPoint2D<T>> {
+    pub fn range(&self, query: Rect<T>) -> Vec<&DataPoint2D<T>> {
         let mut result = Vec::new();
         self.range_inner(query, &mut result);
         result
     }
 
-    fn range_inner<'a>(&'a self, query: &Rect<T>, result: &mut Vec<&'a DataPoint2D<T>>) {
-        if !rects_intersect(&self.area, query) {
+    fn range_inner<'a>(&'a self, query: Rect<T>, result: &mut Vec<&'a DataPoint2D<T>>) {
+        if !rects_intersect(self.area, query) {
             return;
         }
 
@@ -22,7 +22,7 @@ impl<T: Coord> QuadTree<T> {
         }
 
         for data_point in &self.points {
-            if query.contains(&data_point.point) {
+            if query.contains(data_point.point) {
                 result.push(data_point);
             }
         }
@@ -30,7 +30,7 @@ impl<T: Coord> QuadTree<T> {
 }
 
 #[inline]
-fn rects_intersect<T: Coord>(a: &Rect<T>, b: &Rect<T>) -> bool {
+fn rects_intersect<T: Coord>(a: Rect<T>, b: Rect<T>) -> bool {
     a.lower.x <= b.upper.x
         && a.upper.x >= b.lower.x
         && a.lower.y <= b.upper.y
@@ -65,7 +65,7 @@ mod tests {
         insert(&mut tree, 1, 20.0, 20.0);
         insert(&mut tree, 2, 90.0, 90.0);
 
-        let result = tree.range(&rect(0.0, 0.0, 25.0, 25.0));
+        let result = tree.range(rect(0.0, 0.0, 25.0, 25.0));
         let ids: Vec<usize> = result.iter().map(|dp| dp.id).collect();
 
         assert_eq!(ids, vec![0, 1]);
@@ -77,7 +77,7 @@ mod tests {
         insert(&mut tree, 0, 10.0, 10.0);
         insert(&mut tree, 1, 20.0, 20.0);
 
-        let result = tree.range(&rect(50.0, 50.0, 60.0, 60.0));
+        let result = tree.range(rect(50.0, 50.0, 60.0, 60.0));
 
         assert!(result.is_empty());
     }
@@ -89,7 +89,7 @@ mod tests {
         insert(&mut tree, 1, 20.0, 20.0);
         insert(&mut tree, 2, 30.0, 30.0);
 
-        let result = tree.range(&rect(10.0, 10.0, 20.0, 20.0));
+        let result = tree.range(rect(10.0, 10.0, 20.0, 20.0));
         let ids: Vec<usize> = result.iter().map(|dp| dp.id).collect();
 
         assert_eq!(ids, vec![0, 1]);
@@ -99,7 +99,7 @@ mod tests {
     fn range_empty_tree_returns_empty() {
         let tree = make_tree();
 
-        let result = tree.range(&rect(0.0, 0.0, 100.0, 100.0));
+        let result = tree.range(rect(0.0, 0.0, 100.0, 100.0));
 
         assert!(result.is_empty());
     }
@@ -111,7 +111,7 @@ mod tests {
         insert(&mut tree, 1, 50.0, 50.0);
         insert(&mut tree, 2, 99.0, 99.0);
 
-        let result = tree.range(&rect(90.0, 90.0, 110.0, 110.0));
+        let result = tree.range(rect(90.0, 90.0, 110.0, 110.0));
         let ids: Vec<usize> = result.iter().map(|dp| dp.id).collect();
 
         assert_eq!(ids, vec![2]);
@@ -125,7 +125,7 @@ mod tests {
         tree.insert(DataPoint2D::new_coords(2, 90, 90)).unwrap();
 
         let query = Rect::new(Point2D::new(0, 0), Point2D::new(25, 25)).unwrap();
-        let result = tree.range(&query);
+        let result = tree.range(query);
         let ids: Vec<usize> = result.iter().map(|dp| dp.id).collect();
 
         assert_eq!(ids, vec![0, 1]);

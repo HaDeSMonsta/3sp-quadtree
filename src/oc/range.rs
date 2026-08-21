@@ -2,7 +2,7 @@ use crate::geometry::{Coord, Cuboid};
 use crate::oc_tree::{DataPoint3D, OcNode, OcTree};
 
 impl<T: Coord> OcTree<T> {
-    pub fn range(&self, query: &Cuboid<T>) -> Vec<&DataPoint3D<T>> {
+    pub fn range(&self, query: Cuboid<T>) -> Vec<&DataPoint3D<T>> {
         let mut result = Vec::new();
         self.root.range_inner(query, &mut result);
         result
@@ -10,8 +10,8 @@ impl<T: Coord> OcTree<T> {
 }
 
 impl<T: Coord> OcNode<T> {
-    fn range_inner<'a>(&'a self, query: &Cuboid<T>, result: &mut Vec<&'a DataPoint3D<T>>) {
-        if !cuboids_intersect(&self.area, query) {
+    fn range_inner<'a>(&'a self, query: Cuboid<T>, result: &mut Vec<&'a DataPoint3D<T>>) {
+        if !cuboids_intersect(self.area, query) {
             return;
         }
 
@@ -24,7 +24,7 @@ impl<T: Coord> OcNode<T> {
         }
 
         for data_point in &self.points {
-            if query.contains(&data_point.point) {
+            if query.contains(data_point.point) {
                 result.push(data_point);
             }
         }
@@ -32,7 +32,7 @@ impl<T: Coord> OcNode<T> {
 }
 
 #[inline]
-fn cuboids_intersect<T: Coord>(a: &Cuboid<T>, b: &Cuboid<T>) -> bool {
+fn cuboids_intersect<T: Coord>(a: Cuboid<T>, b: Cuboid<T>) -> bool {
     a.lower.x <= b.upper.x
         && a.upper.x >= b.lower.x
         && a.lower.y <= b.upper.y
@@ -76,7 +76,7 @@ mod tests {
         insert(&mut tree, 1, 20.0, 20.0, 20.0);
         insert(&mut tree, 2, 90.0, 90.0, 90.0);
 
-        let result = tree.range(&cuboid(0.0, 0.0, 0.0, 25.0, 25.0, 25.0));
+        let result = tree.range(cuboid(0.0, 0.0, 0.0, 25.0, 25.0, 25.0));
         let ids: Vec<usize> = result.iter().map(|dp| dp.id).collect();
 
         assert_eq!(ids, vec![0, 1]);
@@ -89,7 +89,7 @@ mod tests {
         insert(&mut tree, 0, 10.0, 10.0, 10.0);
         insert(&mut tree, 1, 10.0, 10.0, 90.0);
 
-        let result = tree.range(&cuboid(0.0, 0.0, 0.0, 25.0, 25.0, 25.0));
+        let result = tree.range(cuboid(0.0, 0.0, 0.0, 25.0, 25.0, 25.0));
         let ids: Vec<usize> = result.iter().map(|dp| dp.id).collect();
 
         assert_eq!(ids, vec![0]);
@@ -101,7 +101,7 @@ mod tests {
         insert(&mut tree, 0, 10.0, 10.0, 10.0);
         insert(&mut tree, 1, 20.0, 20.0, 20.0);
 
-        let result = tree.range(&cuboid(50.0, 50.0, 50.0, 60.0, 60.0, 60.0));
+        let result = tree.range(cuboid(50.0, 50.0, 50.0, 60.0, 60.0, 60.0));
 
         assert!(result.is_empty());
     }
@@ -113,7 +113,7 @@ mod tests {
         insert(&mut tree, 1, 20.0, 20.0, 20.0);
         insert(&mut tree, 2, 30.0, 30.0, 30.0);
 
-        let result = tree.range(&cuboid(10.0, 10.0, 10.0, 20.0, 20.0, 20.0));
+        let result = tree.range(cuboid(10.0, 10.0, 10.0, 20.0, 20.0, 20.0));
         let ids: Vec<usize> = result.iter().map(|dp| dp.id).collect();
 
         assert_eq!(ids, vec![0, 1]);
@@ -123,7 +123,7 @@ mod tests {
     fn range_empty_tree_returns_empty() {
         let tree = make_tree();
 
-        let result = tree.range(&cuboid(0.0, 0.0, 0.0, 100.0, 100.0, 100.0));
+        let result = tree.range(cuboid(0.0, 0.0, 0.0, 100.0, 100.0, 100.0));
 
         assert!(result.is_empty());
     }
@@ -135,7 +135,7 @@ mod tests {
         insert(&mut tree, 1, 50.0, 50.0, 50.0);
         insert(&mut tree, 2, 99.0, 99.0, 99.0);
 
-        let result = tree.range(&cuboid(90.0, 90.0, 90.0, 110.0, 110.0, 110.0));
+        let result = tree.range(cuboid(90.0, 90.0, 90.0, 110.0, 110.0, 110.0));
         let ids: Vec<usize> = result.iter().map(|dp| dp.id).collect();
 
         assert_eq!(ids, vec![2]);
@@ -149,7 +149,7 @@ mod tests {
         tree.insert(DataPoint3D::new_coords(2, 90, 90, 90)).unwrap();
 
         let query = Cuboid::new(Point3D::new(0, 0, 0), Point3D::new(25, 25, 25)).unwrap();
-        let result = tree.range(&query);
+        let result = tree.range(query);
         let ids: Vec<usize> = result.iter().map(|dp| dp.id).collect();
 
         assert_eq!(ids, vec![0, 1]);

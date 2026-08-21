@@ -52,21 +52,21 @@ pub struct Point2D<T: Coord> {
     pub y: T,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Point3D<T: Coord> {
     pub x: T,
     pub y: T,
     pub z: T,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[non_exhaustive] // Makes it impossible to construct via Rect { } outside of this crate, so users have to use the new function which checks for validity
 pub struct Rect<T: Coord> {
     pub lower: Point2D<T>,
     pub upper: Point2D<T>,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[non_exhaustive]
 pub struct Cuboid<T: Coord> {
     pub lower: Point3D<T>,
@@ -117,7 +117,7 @@ impl<T: Coord> Rect<T> {
         Self::new(lower, upper)
     }
 
-    pub fn contains(&self, point: &Point2D<T>) -> bool {
+    pub fn contains(&self, point: Point2D<T>) -> bool {
         point.x >= self.lower.x
             && point.x <= self.upper.x
             && point.y >= self.lower.y
@@ -161,7 +161,7 @@ impl<T: Coord> Cuboid<T> {
         Self::new(lower, upper)
     }
 
-    pub fn contains(&self, point: &Point3D<T>) -> bool {
+    pub fn contains(&self, point: Point3D<T>) -> bool {
         point.x >= self.lower.x
             && point.x <= self.upper.x
             && point.y >= self.lower.y
