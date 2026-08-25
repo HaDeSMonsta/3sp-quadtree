@@ -13,7 +13,7 @@ struct Frame<'a, N> {
 }
 
 macro_rules! impl_dfs_iter {
-    ($iter:ident, $node_ty:ident, $point_ty:ident) => {
+    ($iter:ident, $into_iter:ident, $node_ty:ident, $point_ty:ident) => {
         /// Pre-order DFS iterator over the points of a tree.
         ///
         /// A node's own points are yielded first, then its children are visited
@@ -67,11 +67,53 @@ macro_rules! impl_dfs_iter {
                 }
             }
         }
+
+        /// Consuming pre-order DFS iterator over the points of a tree.
+        ///
+        /// Owns the nodes it traverses, popping points and children out of them.
+        pub struct $into_iter<T: Coord> {
+            stack: Vec<$node_ty<T>>,
+        }
+
+        impl<T: Coord> Iterator for $into_iter<T> {
+            type Item = $point_ty<T>;
+
+            fn next(&mut self) -> Option<Self::Item> {
+                loop {
+                    let node = self.stack.last_mut()?;
+
+                    if let Some(point) = node.points.pop() {
+                        return Some(point);
+                    }
+
+                    let Some(children) = node.children.take() else {
+                        self.stack.pop();
+                        continue;
+                    };
+
+                    self.stack.pop();
+                    for mut child in children.into_iter().rev() {
+                        child.points.reverse();
+                        self.stack.push(child);
+                    }
+                }
+            }
+        }
+
+        impl<T: Coord> IntoIterator for $node_ty<T> {
+            type Item = $point_ty<T>;
+            type IntoIter = $into_iter<T>;
+
+            fn into_iter(mut self) -> Self::IntoIter {
+                self.points.reverse();
+                $into_iter { stack: vec![self] }
+            }
+        }
     };
 }
 
-impl_dfs_iter!(QuadIter, QuadTree, DataPoint2D);
-impl_dfs_iter!(OcIter, OcNode, DataPoint3D);
+impl_dfs_iter!(QuadIter, QuadIntoIter, QuadTree, DataPoint2D);
+impl_dfs_iter!(OcIter, OcIntoIter, OcNode, DataPoint3D);
 
 impl<'a, T: Coord> IntoIterator for &'a QuadTree<T> {
     type Item = &'a DataPoint2D<T>;
@@ -103,6 +145,15 @@ impl<'a, T: Coord> IntoIterator for &'a OcNode<T> {
 
     fn into_iter(self) -> Self::IntoIter {
         self.iter()
+    }
+}
+
+impl<T: Coord> IntoIterator for OcTree<T> {
+    type Item = DataPoint3D<T>;
+    type IntoIter = OcIntoIter<T>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.root.into_iter()
     }
 }
 
@@ -193,5 +244,46 @@ mod tests {
     fn oct_iter_empty_tree_yields_nothing() {
         let tree = make_oct();
         assert_eq!(tree.iter().count(), 0);
+    }
+
+    #[test]
+    fn quad_into_iter_matches_borrowing_order() {
+        let mut tree = make_quad();
+        for id in 0..10 {
+            let x = f64::from(u8::try_from(id).unwrap()).mul_add(10.0, 1.0);
+            insert_quad(&mut tree, id, x, x);
+        }
+
+        let borrowed: Vec<usize> = tree.iter().map(|dp| dp.id).collect();
+        let consumed: Vec<usize> = tree.into_iter().map(|dp| dp.id).collect();
+        assert_eq!(consumed, borrowed);
+    }
+
+    #[test]
+    fn quad_into_iter_empty_tree_yields_nothing() {
+        let tree = make_quad();
+        assert_eq!(tree.into_iter().count(), 0);
+    }
+
+    #[test]
+    fn oct_into_iter_matches_borrowing_order() {
+        let mut tree = make_oct();
+        for id in 0..10 {
+            let c = f64::from(u8::try_from(id).unwrap()).mul_add(10.0, 1.0);
+            insert_oct(&mut tree, id, c, c, c);
+        }
+
+        let borrowed: Vec<usize> = tree.iter().map(|dp| dp.id).collect();
+        let consumed: Vec<usize> = tree.into_iter().map(|dp| dp.id).collect();
+        assert_eq!(consumed, borrowed);
+    }
+
+    #[test]
+    fn oct_node_into_iter_works() {
+        let mut tree = make_oct();
+        insert_oct(&mut tree, 3, 50.0, 50.0, 50.0);
+
+        let ids: Vec<usize> = tree.root.into_iter().map(|dp| dp.id).collect();
+        assert_eq!(ids, vec![3]);
     }
 }
