@@ -9,9 +9,6 @@
     clippy::needless_raw_string_hashes
 )]
 
-// CONSIDER: Find by id (linear search through tree)
-// CONSIDER: Iterator (to use in find by id and in general)
-
 use crate::bin_assets::cli::{Args, Cmd};
 use crate::bin_assets::simra;
 use clap::{CommandFactory, Parser};

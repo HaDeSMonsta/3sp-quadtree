@@ -36,6 +36,7 @@ macro_rules! axis_dist {
 mod err;
 pub mod geometry;
 pub mod geotiff;
+mod iter;
 pub mod oc;
 pub mod oc_tree;
 pub mod quad;
