@@ -1,6 +1,7 @@
 use crate::geometry::Coord;
 use crate::oc_tree::{DataPoint3D, OcNode, OcTree};
 use crate::quad_tree::{DataPoint2D, QuadTree};
+use std::iter::FusedIterator;
 
 /// A single frame on the DFS stack while iterating a tree node.
 ///
@@ -20,6 +21,7 @@ macro_rules! impl_dfs_iter {
         /// in order. Internal nodes carry no points and are skipped.
         pub struct $iter<'a, T: Coord> {
             stack: Vec<Frame<'a, $node_ty<T>>>,
+            remaining: usize,
         }
 
         impl<'a, T: Coord> $node_ty<T> {
@@ -30,6 +32,7 @@ macro_rules! impl_dfs_iter {
                         point_idx: 0,
                         child_idx: 0,
                     }],
+                    remaining: self.len,
                 }
             }
         }
@@ -44,6 +47,7 @@ macro_rules! impl_dfs_iter {
                     if frame.point_idx < frame.node.points.len() {
                         let point = &frame.node.points[frame.point_idx];
                         frame.point_idx += 1;
+                        self.remaining -= 1;
                         return Some(point);
                     }
 
@@ -66,13 +70,21 @@ macro_rules! impl_dfs_iter {
                     self.stack.pop();
                 }
             }
+
+            fn size_hint(&self) -> (usize, Option<usize>) {
+                (self.remaining, Some(self.remaining))
+            }
         }
+
+        impl<'a, T: Coord> ExactSizeIterator for $iter<'a, T> {}
+        impl<'a, T: Coord> FusedIterator for $iter<'a, T> {}
 
         /// Consuming pre-order DFS iterator over the points of a tree.
         ///
         /// Owns the nodes it traverses, popping points and children out of them.
         pub struct $into_iter<T: Coord> {
             stack: Vec<$node_ty<T>>,
+            remaining: usize,
         }
 
         impl<T: Coord> Iterator for $into_iter<T> {
@@ -83,6 +95,7 @@ macro_rules! impl_dfs_iter {
                     let node = self.stack.last_mut()?;
 
                     if let Some(point) = node.points.pop() {
+                        self.remaining -= 1;
                         return Some(point);
                     }
 
@@ -98,7 +111,14 @@ macro_rules! impl_dfs_iter {
                     }
                 }
             }
+
+            fn size_hint(&self) -> (usize, Option<usize>) {
+                (self.remaining, Some(self.remaining))
+            }
         }
+
+        impl<T: Coord> ExactSizeIterator for $into_iter<T> {}
+        impl<T: Coord> FusedIterator for $into_iter<T> {}
 
         impl<T: Coord> IntoIterator for $node_ty<T> {
             type Item = $point_ty<T>;
@@ -106,7 +126,11 @@ macro_rules! impl_dfs_iter {
 
             fn into_iter(mut self) -> Self::IntoIter {
                 self.points.reverse();
-                $into_iter { stack: vec![self] }
+                let remaining = self.len;
+                $into_iter {
+                    stack: vec![self],
+                    remaining,
+                }
             }
         }
     };
@@ -285,5 +309,41 @@ mod tests {
 
         let ids: Vec<usize> = tree.root.into_iter().map(|dp| dp.id).collect();
         assert_eq!(ids, vec![3]);
+    }
+
+    #[test]
+    fn iter_size_hint_is_exact() {
+        let mut tree = make_quad();
+        for id in 0..10 {
+            let x = f64::from(u8::try_from(id).unwrap()).mul_add(10.0, 1.0);
+            insert_quad(&mut tree, id, x, x);
+        }
+
+        let mut it = tree.iter();
+        assert_eq!(it.len(), 10);
+        let mut yielded = 0;
+        while let Some(_) = it.next() {
+            yielded += 1;
+            assert_eq!(it.len(), 10 - yielded);
+        }
+        assert_eq!(it.len(), 0);
+    }
+
+    #[test]
+    fn into_iter_size_hint_is_exact() {
+        let mut tree = make_oct();
+        for id in 0..10 {
+            let c = f64::from(u8::try_from(id).unwrap()).mul_add(10.0, 1.0);
+            insert_oct(&mut tree, id, c, c, c);
+        }
+
+        let mut it = tree.into_iter();
+        assert_eq!(it.len(), 10);
+        let mut yielded = 0;
+        while let Some(_) = it.next() {
+            yielded += 1;
+            assert_eq!(it.len(), 10 - yielded);
+        }
+        assert_eq!(it.len(), 0);
     }
 }
