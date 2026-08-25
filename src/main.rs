@@ -15,6 +15,7 @@ use clap::{CommandFactory, Parser};
 use color_eyre::Result;
 use color_eyre::eyre::{Context, ContextCompat};
 use geotiff::GeoTiff;
+use quadtree::Point2D;
 use quadtree::oc_tree::OcTree;
 use quadtree::quad_tree::QuadTree;
 use rayon::prelude::*;
@@ -22,7 +23,8 @@ use std::collections::HashMap;
 use std::fs::{self, File};
 use std::io;
 use std::process::exit;
-use tracing::{info, instrument, subscriber};
+use std::time::Instant;
+use tracing::{debug, info, instrument, subscriber};
 use tracing_subscriber::FmtSubscriber;
 
 mod bin_assets;
@@ -42,9 +44,22 @@ fn main() -> Result<()> {
     let args = setup().context("setup failed")?;
 
     info!("{BIN_NAME} - {BIN_VERSION}");
+    let start = Instant::now();
 
-    let _quadtree = quadtree(args.cap, args.depth).context("failed to create quadtree")?;
-    let (_octree, _ids) = octree(args.cap, args.depth).context("failed to create octree")?;
+    let quadtree = quadtree(args.cap, args.depth).context("failed to create quadtree")?;
+    let (octree, ids) = octree(args.cap, args.depth).context("failed to create octree")?;
+
+    let max = ids
+        .iter()
+        .find(|data| *data.1 > 14.0)
+        .map(|(k, v)| (*k, *v))
+        .context("we know there is exactly one")?;
+    let max_point = octree.get_by_id(max.0).context("we know any id is valid")?;
+    dbg!(max_point);
+    let nearest = quadtree.knn(Point2D::new(max_point.point.x, max_point.point.y), 10);
+    dbg!(nearest);
+
+    debug!("took {:?}", start.elapsed());
 
     Ok(())
 }
