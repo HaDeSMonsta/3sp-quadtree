@@ -3,7 +3,9 @@ name = "quadtree"
 version = "0.1.0"
 edition = "2024"
 
-[profile.release]
+# This actually saves a few seconds
+[profile.release-full]
+inherits = "release"
 lto = true
 codegen-units = 1
 
