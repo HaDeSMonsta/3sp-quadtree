@@ -105,10 +105,13 @@ impl<T: Coord> QuadTree<T> {
             Self::area_from_points(&points).context("failed to construct area from points")?;
 
         debug!("building quadtree from {} points", points.len());
-        let pool = crate::thread_pool()?;
-        let tree = pool
-            .install(|| Self::build(area, points, level_cap, 0, max_depth))
-            .context("failed to build tree")?;
+        let tree = if points.len() > PARALLEL_THRESHOLD {
+            crate::thread_pool()?
+                .install(|| Self::build(area, points, level_cap, 0, max_depth))
+                .context("failed to build tree")?
+        } else {
+            Self::build(area, points, level_cap, 0, max_depth)?
+        };
 
         Ok(tree)
     }

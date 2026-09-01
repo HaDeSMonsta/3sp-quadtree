@@ -80,10 +80,13 @@ impl<T: Coord> OcTree<T> {
             Self::cube_from_points(&points).context("failed to construct cube from points")?;
 
         debug!("building octree from {} points", points.len());
-        let pool = crate::thread_pool()?;
-        let tree = pool
-            .install(|| Self::build(cube, points, level_cap, 0, max_depth))
-            .context("failed to build tree")?;
+        let tree = if points.len() > PARALLEL_THRESHOLD {
+            crate::thread_pool()?
+                .install(|| Self::build(cube, points, level_cap, 0, max_depth))
+                .context("failed to build tree")?
+        } else {
+            Self::build(cube, points, level_cap, 0, max_depth)?
+        };
 
         Ok(tree)
     }
