@@ -49,11 +49,11 @@ fn main() -> Result<()> {
     let quadtree = quadtree(args.cap, args.depth).context("failed to create quadtree")?;
     let (octree, ids) = octree(args.cap, args.depth).context("failed to create octree")?;
 
-    let max = ids
-        .iter()
-        .find(|data| *data.1 > 14.0)
-        .map(|(k, v)| (*k, *v))
-        .context("we know there is exactly one")?;
+    let mut v = ids.into_iter().collect::<Vec<_>>();
+    v.sort_unstable_by(|a, b| a.1.partial_cmp(&b.1).expect("we know no NaN").reverse());
+    let max = v.swap_remove(0);
+    let max = dbg!(max);
+
     let max_point = octree.get_by_id(max.0).context("we know any id is valid")?;
     dbg!(max_point);
     let nearest = quadtree.knn(Point2D::new(max_point.point.x, max_point.point.y), 10);
