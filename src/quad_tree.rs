@@ -316,7 +316,7 @@ impl<T: Coord> QuadTree<T> {
                 .expect("failed to subdivide after checking it is safe to");
         }
 
-                let idx = Self::child_idx_for_point(self.area, data_point.point);
+        let idx = Self::child_idx_for_point(self.area, data_point.point);
         // no self.children.as_mut().expect() because I want a formatted error
         let Some(child) = &mut self.children else {
             panic!(
