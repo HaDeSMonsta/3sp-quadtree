@@ -77,7 +77,7 @@ fn read_tiffs() -> Result<Vec<(GeoTiff, String)>> {
                 .file_name()
                 .with_context(|| format!("no filename: {path:?}"))?
                 .to_str()
-                .with_context(|| format!("invalid filenam: {path:?}"))?
+                .with_context(|| format!("invalid filename: {path:?}"))?
                 .to_owned();
 
             let file =
