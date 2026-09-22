@@ -1,7 +1,7 @@
-BIN := $(shell cargo metadata --no-deps --format-version 1 | jq -r ".packages[0].name")
+BIN := $(shell cargo metadata --no-deps --format-version 1 | jq -r ".packages[] | .targets[] | select(.kind | contains([\"bin\"])) | .name")
 DBG_BIN := target/debug/$(BIN)
 REL_BIN := target/release/$(BIN)
-SOURCES := $(shell find src -name '*.rs') Cargo.toml Cargo.lock
+SOURCES := $(shell find src bin/src -name '*.rs') Cargo.toml Cargo.lock bin/Cargo.toml
 
 FLAGS := --log-lvl debug
 #BACKTRACE := RUST_BACKTRACE=1

@@ -4,8 +4,8 @@ use color_eyre::Result;
 use color_eyre::eyre::Context;
 use std::fs;
 
-const BIN_NAME: &str = env!("CARGO_PKG_NAME");
-const COMPLETIONS_DIR: &str = "completions/";
+const BIN_NAME: &str = "quadtree";
+const COMPLETIONS_DIR: &str = "../completions/";
 
 include!("src/bin_assets/cli.rs");
 

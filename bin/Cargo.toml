@@ -1,0 +1,28 @@
+[package]
+name = "quadtree-bin"
+version.workspace = true
+edition.workspace = true
+
+[[bin]]
+name = "quadtree"
+path = "src/main.rs"
+
+[dependencies]
+clap = { workspace = true }
+clap_complete = { workspace = true }
+color-eyre = { workspace = true }
+geotiff = { workspace = true }
+geo-types = { workspace = true }
+jiff = { workspace = true }
+quadtree = { path = ".." }
+rayon = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+
+[build-dependencies]
+clap = { workspace = true }
+clap_complete = { workspace = true }
+color-eyre = { workspace = true }
+
+[target.'cfg(target_env = "musl")'.dependencies]
+mimalloc = { workspace = true }

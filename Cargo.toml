@@ -1,5 +1,14 @@
 [package]
 name = "quadtree"
+version.workspace = true
+edition.workspace = true
+
+[workspace]
+members = ["bin"]
+resolver = "3"
+default-members = ["bin"]
+
+[workspace.package]
 version = "0.1.0"
 edition = "2024"
 
@@ -26,24 +35,10 @@ tracing = "0.1.44"
 tracing-subscriber = "0.3.23"
 
 [dependencies]
-clap = { workspace = true }
-clap_complete = { workspace = true }
 color-eyre = { workspace = true }
-geotiff = { workspace = true }
-geo-types = { workspace = true }
-jiff = { workspace = true }
 num-traits = { workspace = true }
 rayon = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 thiserror = { workspace = true }
 tracing = { workspace = true }
-tracing-subscriber = { workspace = true }
-
-[build-dependencies]
-clap = { workspace = true }
-clap_complete = { workspace = true }
-color-eyre = { workspace = true }
-
-[target.'cfg(target_env = "musl")'.dependencies]
-mimalloc = { workspace = true }

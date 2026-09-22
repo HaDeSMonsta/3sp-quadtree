@@ -602,6 +602,19 @@ dependencies = [
 name = "quadtree"
 version = "0.1.0"
 dependencies = [
+ "color-eyre",
+ "num-traits",
+ "rayon",
+ "serde",
+ "serde_json",
+ "thiserror",
+ "tracing",
+]
+
+[[package]]
+name = "quadtree-bin"
+version = "0.1.0"
+dependencies = [
  "clap",
  "clap_complete",
  "color-eyre",
@@ -609,11 +622,8 @@ dependencies = [
  "geotiff",
  "jiff",
  "mimalloc",
- "num-traits",
+ "quadtree",
  "rayon",
- "serde",
- "serde_json",
- "thiserror",
  "tracing",
  "tracing-subscriber",
 ]
