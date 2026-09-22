@@ -28,6 +28,7 @@ use tracing::{debug, info, instrument, subscriber};
 use tracing_subscriber::FmtSubscriber;
 
 mod bin_assets;
+mod geotiff_helper;
 
 #[cfg(target_env = "musl")]
 #[global_allocator]
@@ -145,11 +146,17 @@ fn octree(cap: usize, depth: usize) -> Result<(OcTree<f64>, HashMap<usize, f32>)
         .map(|(t, f)| (t, f.as_str()))
         .collect::<Vec<_>>();
 
-    let (points, map) = quadtree::geotiff::geotiffs_to_3d_points_mapping(&tiff_refs)
+    let (points, map) = geotiff_helper::geotiffs_to_3d_points_mapping(&tiff_refs)
         .context("failed to parse geotiffs to 3d points")?;
     let treee =
         OcTree::from_points(points, cap, depth).context("failed to create tree from tiffs")?;
     info!("created tree with {} elements", treee.len());
 
     Ok((treee, map))
+}
+
+fn thread_pool() -> Result<rayon::ThreadPool> {
+    rayon::ThreadPoolBuilder::new()
+        .build()
+        .context("failed to build rayon threadpool")
 }

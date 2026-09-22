@@ -525,28 +525,6 @@ impl<T: Coord> QuadTree<T> {
     }
 }
 
-impl QuadTree<f64> {
-    /// Build a `QuadTree<f64>` from the pixel centers of multiple `GeoTiff`s.
-    ///
-    /// IDs are offset per file so they do not collide. See
-    /// [`crate::geotiff::geotiffs_to_points`].
-    ///
-    /// # Errors
-    ///
-    /// Returns an error if the combined points contain fewer than two points or
-    /// if the tree area cannot be constructed from them.
-    pub fn from_geotiffs(
-        geotiffs: &[geotiff::GeoTiff],
-        level_cap: usize,
-        max_depth: usize,
-    ) -> Result<Self> {
-        let points = crate::geotiff::geotiffs_to_points(geotiffs);
-        debug!("created {} points", points.len());
-        Self::from_points(points, level_cap, max_depth)
-            .context("failed to build QuadTree from GeoTiff files")
-    }
-}
-
 impl<T: Coord> DataPoint2D<T> {
     pub const fn new(id: usize, point: Point2D<T>) -> Self {
         Self { id, point }

@@ -595,24 +595,6 @@ impl<T: Coord> OcNode<T> {
     }
 }
 
-impl OcTree<f64> {
-    /// Build an `OcTree<f64>` from the pixel centers of multiple `GeoTiff`s,
-    /// parsing the timestamp from each filename for the z-coordinate.
-    ///
-    /// IDs are offset per file so they do not collide.
-    pub fn from_geotiffs(
-        geotiffs: &[(&geotiff::GeoTiff, &str)],
-        level_cap: usize,
-        max_depth: usize,
-    ) -> Result<Self> {
-        let points = crate::geotiff::geotiffs_to_3d_points(geotiffs)?;
-
-        let tree = Self::from_points(points, level_cap, max_depth)
-            .context("failed to build OcTree from GeoTiff files")?;
-        Ok(tree)
-    }
-}
-
 impl<T: Coord> DataPoint3D<T> {
     pub const fn new(id: usize, point: Point3D<T>) -> Self {
         Self { id, point }

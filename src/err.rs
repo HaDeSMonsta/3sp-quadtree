@@ -77,13 +77,3 @@ pub enum TreeErr3D<T: Coord> {
     #[error("tried to construct tree from ({0}) points, needs at least 2")]
     InsufficientPoints(usize),
 }
-
-#[derive(Debug, Error)]
-pub enum TiffMapErr<T: Coord> {
-    #[error("Expected each ID to be unique, found duplicate: {0}")]
-    DuplicateId(usize),
-    #[error(
-        "Expected value at {x}/{y}, found none (I'll be honest, that error message probably doesn't help much, but I don't know what else to add)"
-    )]
-    MissingValue { x: T, y: T },
-}
