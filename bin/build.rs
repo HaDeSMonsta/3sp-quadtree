@@ -7,7 +7,7 @@ use std::fs;
 const BIN_NAME: &str = "quadtree";
 const COMPLETIONS_DIR: &str = "../completions/";
 
-include!("src/bin_assets/cli.rs");
+include!("src/cli.rs");
 
 fn main() -> Result<()> {
     color_eyre::install().context("failed to install :(")?;

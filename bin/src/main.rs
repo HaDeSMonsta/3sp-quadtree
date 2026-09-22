@@ -9,8 +9,7 @@
     clippy::needless_raw_string_hashes
 )]
 
-use crate::bin_assets::cli::{Args, Cmd};
-use crate::bin_assets::simra;
+use crate::cli::{Args, Cmd};
 use clap::{CommandFactory, Parser};
 use color_eyre::Result;
 use color_eyre::eyre::{Context, ContextCompat};
@@ -27,8 +26,9 @@ use std::time::Instant;
 use tracing::{debug, info, instrument, subscriber};
 use tracing_subscriber::FmtSubscriber;
 
-mod bin_assets;
+mod cli;
 mod geotiff_helper;
+mod simra;
 
 #[cfg(target_env = "musl")]
 #[global_allocator]
