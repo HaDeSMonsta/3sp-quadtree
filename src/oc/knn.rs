@@ -89,7 +89,7 @@ impl<T: Coord> OcTree<T> {
             }
 
             if let Some(children) = &candidate.node.children {
-                for child in children.iter() {
+                for child in children {
                     let min_dist2 = dist2_point_cuboid(query, child.area);
 
                     if best.len() < k || best.peek().is_some_and(|worst| min_dist2 < worst.dist2) {

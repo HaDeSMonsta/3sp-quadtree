@@ -16,7 +16,7 @@ impl<T: Coord> OcNode<T> {
         }
 
         if let Some(children) = &self.children {
-            for child in children.iter() {
+            for child in children {
                 child.range_inner(query, result);
             }
 

@@ -463,7 +463,7 @@ impl<T: Coord> QuadTree<T> {
     pub fn nodes(&self) -> usize {
         let child_cnt = self.children.as_ref().map_or(0, |children| {
             let mut sum = 0;
-            for child in children.iter() {
+            for child in children {
                 sum += child.nodes();
             }
             sum

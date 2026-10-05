@@ -15,7 +15,7 @@ pub fn parse<P: AsRef<Path> + Debug>(path: P) -> Result<Vec<DataPoint2D<f64>>> {
     }
 }
 
-fn parse_dir<P: AsRef<Path>>(path: P, mut id_cnt: &mut usize) -> Result<Vec<DataPoint2D<f64>>> {
+fn parse_dir<P: AsRef<Path>>(path: P, id_cnt: &mut usize) -> Result<Vec<DataPoint2D<f64>>> {
     let mut data = vec![];
     let dir = fs::read_dir(path).context("failed to read dir")?;
 
@@ -23,10 +23,9 @@ fn parse_dir<P: AsRef<Path>>(path: P, mut id_cnt: &mut usize) -> Result<Vec<Data
         let path = entry.context("invalid file in dir")?.path();
 
         let mut dir_data = if path.is_dir() {
-            parse_dir(path, &mut id_cnt)?
+            parse_dir(path, id_cnt)?
         } else {
-            parse_file(&path, &mut id_cnt)
-                .with_context(|| format!("failed to parse file: {path:?}"))?
+            parse_file(&path, id_cnt).with_context(|| format!("failed to parse file: {path:?}"))?
         };
 
         data.append(&mut dir_data);

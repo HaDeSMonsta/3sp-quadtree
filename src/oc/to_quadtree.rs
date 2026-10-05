@@ -37,7 +37,7 @@ impl<T: Coord> OcNode<T> {
         }
 
         if let Some(children) = &self.children {
-            for child in children.iter() {
+            for child in children {
                 child.collect_2d_in_z_range(z_lower, z_upper, out);
             }
             return;
