@@ -27,6 +27,11 @@ run: debug
 run-release: release
 	$(BACKTRACE) $(REL_BIN) $(FLAGS)
 
+.PHONY: bench
+bench: $(SOURCES)
+	cargo build --release --features tracing/release_max_level_off
+	hyperfine --warmup 3 --runs 10 "$(REL_BIN)" --export-json bench.json
+
 .PHONY: check
 check:
 	cargo check
