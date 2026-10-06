@@ -5,5 +5,5 @@
 /simra/
 /tree.json
 /octree.txt
-/bench.json
+*bench.json
 *.tar.gz
