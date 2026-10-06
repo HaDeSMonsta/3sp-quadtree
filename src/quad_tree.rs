@@ -6,6 +6,7 @@ use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
 use std::fs;
+use std::mem::size_of;
 use std::path::Path;
 use tracing::debug;
 // Some thoughts:
@@ -469,6 +470,31 @@ impl<T: Coord> QuadTree<T> {
             sum
         });
         child_cnt + 1
+    }
+
+    /// Size in bytes of the tree, including every node and point buffer
+    pub fn size_bytes(&self) -> usize {
+        let mut total = size_of::<Self>();
+        total += self.heap_bytes();
+        total
+    }
+
+    /// Size of the tree formatted
+    pub fn size_bytes_formatted(&self) -> String {
+        crate::format_bytes(self.size_bytes())
+    }
+
+    fn heap_bytes(&self) -> usize {
+        let mut total = self.points.capacity() * size_of::<DataPoint2D<T>>();
+
+        if let Some(children) = &self.children {
+            total += size_of::<[Self; 4]>();
+            for child in children {
+                total += child.heap_bytes();
+            }
+        }
+
+        total
     }
 
     pub fn print_structure(&self) {

@@ -9,6 +9,7 @@ use std::fs;
 use std::fs::File;
 use std::io::BufWriter;
 use std::io::Write as _;
+use std::mem::size_of;
 use std::path::Path;
 use tracing::debug;
 
@@ -189,6 +190,18 @@ impl<T: Coord> OcTree<T> {
 
     pub fn nodes(&self) -> usize {
         self.root.nodes()
+    }
+
+    /// Size in bytes of the tree, including every node and point buffer
+    pub fn size_bytes(&self) -> usize {
+        let mut total = size_of::<Self>();
+        total += self.root.heap_bytes();
+        total
+    }
+
+    /// Size of the tree formatted
+    pub fn size_bytes_formatted(&self) -> String {
+        crate::format_bytes(self.size_bytes())
     }
 
     /// Prints the structure of the octree to a file
@@ -533,6 +546,19 @@ impl<T: Coord> OcNode<T> {
             sum
         });
         child_cnt + 1
+    }
+
+    fn heap_bytes(&self) -> usize {
+        let mut total = self.points.capacity() * size_of::<DataPoint3D<T>>();
+
+        if let Some(children) = &self.children {
+            total += size_of::<[Self; 8]>();
+            for child in children {
+                total += child.heap_bytes();
+            }
+        }
+
+        total
     }
 
     fn print_structure_inner(
