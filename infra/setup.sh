@@ -6,6 +6,11 @@ status () {
 	printf "$1\n" > /root/status.md
 }
 
+# I want the sourcing setup when I ssh into it
+status "install rust"
+curl https://sh.rustup.rs -sSf | sh -s -- -y
+source /root/.cargo/env
+
 status "update"
 apt update
 
@@ -14,10 +19,6 @@ apt upgrade -y
 
 status "install pkgs"
 apt install -y vim git btop make gcc hyperfine
-
-status "install rust"
-curl https://sh.rustup.rs -sSf | sh -s -- -y
-source /root/.cargo/env
 
 status "setup project"
 git clone --depth 1 https://git.hadesmedia.de/hades/quadtree.git /root/quadtree

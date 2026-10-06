@@ -1,6 +1,7 @@
 BIN := $(shell cargo metadata --no-deps --format-version 1 | jq -r ".packages[] | .targets[] | select(.kind | contains([\"bin\"])) | .name")
 DBG_BIN := target/debug/$(BIN)
 REL_BIN := target/release/$(BIN)
+BENCH_BIN := target/release-full/$(BIN)
 SOURCES := $(shell find src bin/src -name '*.rs') Cargo.toml Cargo.lock bin/Cargo.toml
 
 FLAGS := --log-lvl debug
@@ -30,7 +31,7 @@ run-release: release
 .PHONY: bench
 bench: $(SOURCES)
 	cargo build --profile release-full --features tracing/max_level_off
-	hyperfine --warmup 3 --runs 10 "$(REL_BIN) bench build-oct" --export-json bench.json
+	hyperfine --warmup 3 --runs 10 "$(BENCH_BIN) bench build-oct" --export-json bench.json
 
 .PHONY: check
 check:
