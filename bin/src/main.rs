@@ -9,7 +9,7 @@
     clippy::needless_raw_string_hashes
 )]
 
-use crate::cli::{Args, Cmd};
+use crate::cli::{Args, Benches, Cmd};
 use clap::{CommandFactory, Parser};
 use color_eyre::Result;
 use color_eyre::eyre::{Context, ContextCompat};
@@ -26,6 +26,7 @@ use std::time::Instant;
 use tracing::{debug, info, instrument, subscriber};
 use tracing_subscriber::FmtSubscriber;
 
+mod bench;
 mod cli;
 mod geotiff_helper;
 mod simra;
@@ -41,10 +42,23 @@ const TIFF_DIR: &str = "dwd-geotiff-epsg4326/";
 
 #[allow(unreachable_code)]
 fn main() -> Result<()> {
-    // At some point it will probably hold a query
     let args = setup().context("setup failed")?;
 
     info!("{BIN_NAME} - {BIN_VERSION}");
+
+    if let Some(Cmd::Bench { target }) = &args.cmd {
+        match target {
+            Benches::BuildOct => {
+                let (points, _) = bench::get_points().context("failed to get points")?;
+                let dur = bench::build_oct(args.cap, args.depth, points)
+                    .context("failed to bench build_oct")?;
+                dbg!(dur);
+            }
+        }
+
+        return Ok(());
+    }
+
     let start = Instant::now();
 
     let quadtree = quadtree(args.cap, args.depth).context("failed to create quadtree")?;
@@ -107,6 +121,9 @@ fn setup() -> Result<Args> {
 
     if let Some(cmd) = &args.cmd {
         match cmd {
+            Cmd::Bench { target } => {
+                debug!(?target, "benching");
+            }
             Cmd::Complete { shell } => {
                 let mut cmd = Args::command();
                 clap_complete::generate(*shell, &mut cmd, BIN_NAME, &mut io::stdout());

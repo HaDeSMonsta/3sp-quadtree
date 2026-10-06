@@ -1,4 +1,4 @@
-use clap::{Parser, Subcommand};
+use clap::{Parser, Subcommand, ValueEnum};
 use clap_complete::Shell;
 use std::env;
 use std::env::VarError;
@@ -26,11 +26,18 @@ pub struct Args {
 
 #[derive(Debug, Subcommand)]
 pub enum Cmd {
+    /// Run a benchmark
+    Bench { target: Benches },
     /// Generate shell completions
     Complete {
         /// Which shell to generate completions for
         shell: Shell,
     },
+}
+
+#[derive(Clone, Debug, ValueEnum)]
+pub enum Benches {
+    BuildOct,
 }
 
 fn log_lvl() -> String {

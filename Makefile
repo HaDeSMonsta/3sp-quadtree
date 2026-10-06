@@ -30,7 +30,7 @@ run-release: release
 .PHONY: bench
 bench: $(SOURCES)
 	cargo build --profile release-full --features tracing/max_level_off
-	hyperfine --warmup 3 --runs 10 "$(REL_BIN)" --export-json bench.json
+	hyperfine --warmup 3 --runs 10 "$(REL_BIN) bench build-oct" --export-json bench.json
 
 .PHONY: check
 check:
