@@ -38,7 +38,7 @@ static GLOBAL: mimalloc::MiMalloc = mimalloc::MiMalloc;
 const BIN_NAME: &str = env!("CARGO_BIN_NAME");
 const BIN_VERSION: &str = env!("CARGO_PKG_VERSION");
 const SIMRA_DIR: &str = "simra/";
-const TIFF_DIR: &str = "dwd-geotiff-epsg4326/";
+const TIFF_DIR: &str = "dwd-geotiff/";
 
 #[allow(unreachable_code)]
 fn main() -> Result<()> {

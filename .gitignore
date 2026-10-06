@@ -1,7 +1,7 @@
 /.idea/
 /completions/
 /target/
-/dwd-geotiff-epsg4326/
+/dwd-geotiff/
 /simra/
 /tree.json
 /octree.txt
