@@ -49,10 +49,12 @@ fn main() -> Result<()> {
     if let Some(Cmd::Bench { target }) = &args.cmd {
         match target {
             Benches::BuildOct => {
-                let (points, _) = bench::get_points().context("failed to get points")?;
-                let dur = bench::build_oct(args.cap, args.depth, points)
+                let data = bench::get_points().context("failed to get points")?;
+                let oct_creation_dur = bench::build_oct(args.cap, args.depth, data.points)
                     .context("failed to bench build_oct")?;
-                dbg!(dur);
+                dbg!(data.read_time);
+                dbg!(data.parse_time);
+                dbg!(oct_creation_dur);
             }
         }
 
