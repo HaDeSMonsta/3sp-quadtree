@@ -38,12 +38,14 @@ pub enum Cmd {
 #[derive(Clone, Debug, ValueEnum)]
 pub enum Benches {
     BuildOct,
+    BuildQuad,
 }
 
 impl Benches {
     pub const fn bench_name(&self) -> &'static str {
         match self {
             Self::BuildOct => "BuildOct",
+            Self::BuildQuad => "BuildQuad",
         }
     }
 }

@@ -3,6 +3,7 @@ use color_eyre::Result;
 use color_eyre::eyre::Context;
 use quadtree::geometry::Coord;
 use quadtree::oc_tree::{DataPoint3D, OcTree};
+use quadtree::quad_tree::{DataPoint2D, QuadTree};
 use serde::Serialize;
 use std::collections::HashMap;
 use std::time::{Duration, Instant};
@@ -33,6 +34,36 @@ pub struct BenchRangeResult {
     pub point_rain_value: f32,
     pub dur: Duration,
     pub points: Vec<DataPoint3D<f64>>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BenchQuadKnnResult {
+    pub point_id: usize,
+    pub dur: Duration,
+    pub points: Vec<DataPoint2D<f64>>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BenchQuadPipResult {
+    pub point_id: usize,
+    pub contained_dur: Duration,
+    pub not_contained_dur: Duration,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BenchQuadRangeResult {
+    pub point_id: usize,
+    pub dur: Duration,
+    pub points: Vec<DataPoint2D<f64>>,
+}
+
+#[derive(Clone, Debug)]
+pub struct GetPoints2DData {
+    pub points: Vec<DataPoint2D<f64>>,
+    pub parse_time: Duration,
 }
 
 #[derive(Clone, Debug)]
@@ -75,6 +106,21 @@ pub fn get_points() -> Result<GetPointsData> {
     Ok(data)
 }
 
+#[instrument]
+pub fn get_simra_points() -> Result<GetPoints2DData> {
+    let parse_start = Instant::now();
+    let points = crate::simra::parse(crate::SIMRA_DIR).context("failed to parse simra data")?;
+    let parse_dur = parse_start.elapsed();
+    info!("parsed {} simra points", points.len());
+
+    let data = GetPoints2DData {
+        points,
+        parse_time: parse_dur,
+    };
+
+    Ok(data)
+}
+
 #[instrument(skip(points))]
 pub fn build_oct<T: Coord>(
     cap: usize,
@@ -85,6 +131,23 @@ pub fn build_oct<T: Coord>(
 
     debug!("benching build octree");
     let tree = OcTree::from_points(points, cap, depth).context("failed to create octree")?;
+
+    let end = start.elapsed();
+    let size = tree.size_bytes_formatted();
+    info!(size);
+    Ok((tree, end))
+}
+
+#[instrument(skip(points))]
+pub fn build_quad<T: Coord>(
+    cap: usize,
+    depth: usize,
+    points: Vec<DataPoint2D<T>>,
+) -> Result<(QuadTree<T>, Duration)> {
+    let start = Instant::now();
+
+    debug!("benching build quadtree");
+    let tree = QuadTree::from_points(points, cap, depth).context("failed to create quadtree")?;
 
     let end = start.elapsed();
     let size = tree.size_bytes_formatted();

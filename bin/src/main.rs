@@ -9,13 +9,17 @@
     clippy::needless_raw_string_hashes
 )]
 
-use crate::bench::{BenchKnnResult, BenchPipResult, BenchRangeResult};
+use crate::bench::{
+    BenchKnnResult, BenchPipResult, BenchQuadKnnResult, BenchQuadPipResult, BenchQuadRangeResult,
+    BenchRangeResult,
+};
 use crate::cli::{Args, Benches, Cmd};
 use clap::{CommandFactory, Parser};
 use color_eyre::Result;
 use color_eyre::eyre::{Context, ContextCompat};
 use geotiff::GeoTiff;
 use quadtree::Point2D;
+use quadtree::Rect;
 use quadtree::geometry::Cuboid;
 use quadtree::oc_tree::OcTree;
 use quadtree::quad::pip::Polygon;
@@ -176,6 +180,108 @@ fn main() -> Result<()> {
                     "data parse time": data.parse_time,
                     "octree construction time": oct_creation_dur,
                     "octree size": octree.size_bytes(),
+                    "source points": source_points,
+                    "knn results": knn_results,
+                    "knn n": KNN_N,
+                    "pip results": pip_results,
+                    "range results": range_results,
+                })
+            }
+            Benches::BuildQuad => {
+                let full_start = Instant::now();
+                let data = bench::get_simra_points().context("failed to get points")?;
+
+                let mut candidates = data.points.iter().map(|point| point.id).collect::<Vec<_>>();
+                assert!(
+                    candidates.len() >= RUNS,
+                    "expected at least {RUNS} candidates, found {}",
+                    candidates.len()
+                );
+                // So the random shuffle has the same start
+                candidates.sort_unstable();
+
+                let (quadtree, quad_creation_dur) =
+                    bench::build_quad(args.cap, args.depth, data.points)
+                        .context("failed to bench build_quad")?;
+
+                let mut rng = StdRng::seed_from_u64(SEED);
+                candidates.shuffle(&mut rng);
+
+                let mut source_points = Vec::with_capacity(RUNS);
+                let mut knn_results = Vec::with_capacity(RUNS);
+                let mut pip_results = Vec::with_capacity(RUNS);
+                let mut range_results = Vec::with_capacity(RUNS);
+                for id in candidates.into_iter().take(RUNS) {
+                    let target = quadtree.get_by_id(id).context("valid id not found")?;
+                    source_points.push(target);
+
+                    let knn_start = Instant::now();
+                    let points = quadtree.knn(target.point, KNN_N);
+                    let knn_time = knn_start.elapsed();
+                    // I'm sure this will always be called with sufficiently large datasets
+                    assert_eq!(
+                        KNN_N,
+                        points.len(),
+                        "expected {KNN_N} points, got {}",
+                        points.len()
+                    );
+
+                    let contained_polygon = square(target.point.x, target.point.y, PIP_HALF)
+                        .context("failed to build contained polygon")?;
+                    let pip_start = Instant::now();
+                    let pip_contained = quadtree.pip(target.point, &contained_polygon);
+                    let pip_contained_time = pip_start.elapsed();
+                    assert!(pip_contained, "pip not working");
+
+                    let outside_polygon = square(
+                        4.0f64.mul_add(PIP_HALF, target.point.x),
+                        target.point.y,
+                        PIP_HALF,
+                    )
+                    .context("failed to build outside polygon")?;
+                    let pip_start = Instant::now();
+                    let pip_not_contained = quadtree.pip(target.point, &outside_polygon);
+                    let pip_not_contained_time = pip_start.elapsed();
+                    assert!(!pip_not_contained, "pip not working");
+
+                    let query = Rect::from_coords(
+                        target.point.x - RANGE_HALF,
+                        target.point.y - RANGE_HALF,
+                        target.point.x + RANGE_HALF,
+                        target.point.y + RANGE_HALF,
+                    )
+                    .context("failed to build range rect")?;
+                    let range_start = Instant::now();
+                    let range_points = quadtree.range(query);
+                    let range_time = range_start.elapsed();
+
+                    knn_results.push(BenchQuadKnnResult {
+                        point_id: id,
+                        dur: knn_time,
+                        points: points.into_iter().copied().collect(),
+                    });
+
+                    pip_results.push(BenchQuadPipResult {
+                        point_id: id,
+                        contained_dur: pip_contained_time,
+                        not_contained_dur: pip_not_contained_time,
+                    });
+
+                    range_results.push(BenchQuadRangeResult {
+                        point_id: id,
+                        dur: range_time,
+                        points: range_points.into_iter().copied().collect(),
+                    });
+                }
+
+                let full_time = full_start.elapsed();
+                json!({
+                    "full_runtime": full_time,
+                    "cap": args.cap,
+                    "depth": args.depth,
+                    "data parse time": data.parse_time,
+                    "quadtree construction time": quad_creation_dur,
+                    "quadtree size": quadtree.size_bytes(),
                     "source points": source_points,
                     "knn results": knn_results,
                     "knn n": KNN_N,
