@@ -77,3 +77,27 @@ $(DBG_BIN): $(SOURCES)
 
 $(REL_BIN): $(SOURCES)
 	cargo build --release
+
+ZONE := europe-west3-c
+PROJECT := sp-benchmarks
+REMOTE := workhorse
+TARBALLS := dwd.tar.gz simra.tar.gz
+
+.PHONY: ssh
+ssh:
+	gcloud compute ssh $(REMOTE) --zone $(ZONE) --project $(PROJECT)
+
+.PHONY: scp
+scp:
+	gcloud compute scp $(TARBALLS) $(REMOTE): --zone $(ZONE) --project $(PROJECT)
+
+.PHONY: scp-dwd
+scp-dwd:
+	gcloud compute scp dwd.tar.gz $(REMOTE): --zone $(ZONE) --project $(PROJECT)
+
+.PHONY: scp-simra
+scp-simra:
+	gcloud compute scp simra.tar.gz $(REMOTE): --zone $(ZONE) --project $(PROJECT)
+
+.PHONY: sync
+sync: scp ssh
