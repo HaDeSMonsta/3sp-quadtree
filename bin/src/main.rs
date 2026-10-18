@@ -146,7 +146,7 @@ fn main() -> Result<()> {
                     )
                     .context("failed to build range cuboid")?;
                     let range_start = Instant::now();
-                    let range_points = octree.range(query);
+                    let _range_points = octree.range(query);
                     let range_time = range_start.elapsed();
 
                     knn_results.push(BenchKnnResult {
@@ -167,7 +167,7 @@ fn main() -> Result<()> {
                         point_id: id,
                         point_rain_value: value,
                         dur: range_time,
-                        points: range_points.into_iter().copied().collect(),
+                        // points: range_points.into_iter().copied().collect(),
                     });
                 }
 
@@ -252,7 +252,7 @@ fn main() -> Result<()> {
                     )
                     .context("failed to build range rect")?;
                     let range_start = Instant::now();
-                    let range_points = quadtree.range(query);
+                    let _range_points = quadtree.range(query);
                     let range_time = range_start.elapsed();
 
                     knn_results.push(BenchQuadKnnResult {
@@ -270,7 +270,7 @@ fn main() -> Result<()> {
                     range_results.push(BenchQuadRangeResult {
                         point_id: id,
                         dur: range_time,
-                        points: range_points.into_iter().copied().collect(),
+                        // points: range_points.into_iter().copied().collect(),
                     });
                 }
 

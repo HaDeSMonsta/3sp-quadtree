@@ -33,7 +33,7 @@ pub struct BenchRangeResult {
     pub point_id: usize,
     pub point_rain_value: f32,
     pub dur: Duration,
-    pub points: Vec<DataPoint3D<f64>>,
+    // pub points: Vec<DataPoint3D<f64>>,
 }
 
 #[derive(Debug, Serialize)]
@@ -57,7 +57,7 @@ pub struct BenchQuadPipResult {
 pub struct BenchQuadRangeResult {
     pub point_id: usize,
     pub dur: Duration,
-    pub points: Vec<DataPoint2D<f64>>,
+    // pub points: Vec<DataPoint2D<f64>>,
 }
 
 #[derive(Clone, Debug)]
