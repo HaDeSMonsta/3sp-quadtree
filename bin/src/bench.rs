@@ -1,10 +1,39 @@
 use crate::thread_pool;
 use color_eyre::Result;
 use color_eyre::eyre::Context;
-use quadtree::oc_tree::DataPoint3D;
+use quadtree::geometry::Coord;
+use quadtree::oc_tree::{DataPoint3D, OcTree};
+use serde::Serialize;
 use std::collections::HashMap;
 use std::time::{Duration, Instant};
 use tracing::{debug, info, instrument};
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BenchKnnResult {
+    pub point_id: usize,
+    pub point_rain_value: f32,
+    pub dur: Duration,
+    pub points: Vec<DataPoint3D<f64>>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BenchPipResult {
+    pub point_id: usize,
+    pub point_rain_value: f32,
+    pub contained_dur: Duration,
+    pub not_contained_dur: Duration,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BenchRangeResult {
+    pub point_id: usize,
+    pub point_rain_value: f32,
+    pub dur: Duration,
+    pub points: Vec<DataPoint3D<f64>>,
+}
 
 #[derive(Clone, Debug)]
 #[allow(dead_code)] // We probably don't need the ids at all
@@ -47,15 +76,18 @@ pub fn get_points() -> Result<GetPointsData> {
 }
 
 #[instrument(skip(points))]
-pub fn build_oct(cap: usize, depth: usize, points: Vec<DataPoint3D<f64>>) -> Result<Duration> {
+pub fn build_oct<T: Coord>(
+    cap: usize,
+    depth: usize,
+    points: Vec<DataPoint3D<T>>,
+) -> Result<(OcTree<T>, Duration)> {
     let start = Instant::now();
 
     debug!("benching build octree");
-    let tree = quadtree::oc_tree::OcTree::from_points(points, cap, depth)
-        .context("failed to create octree")?;
+    let tree = OcTree::from_points(points, cap, depth).context("failed to create octree")?;
 
     let end = start.elapsed();
     let size = tree.size_bytes_formatted();
-    dbg!(size);
-    Ok(end)
+    info!(size);
+    Ok((tree, end))
 }

@@ -40,6 +40,14 @@ pub enum Benches {
     BuildOct,
 }
 
+impl Benches {
+    pub const fn bench_name(&self) -> &'static str {
+        match self {
+            Self::BuildOct => "BuildOct",
+        }
+    }
+}
+
 fn log_lvl() -> String {
     env::var("LOG_LVL").unwrap_or_else(|e| {
         if e == VarError::NotPresent {

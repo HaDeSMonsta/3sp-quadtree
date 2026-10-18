@@ -1,9 +1,8 @@
-/.idea/
-/completions/
-/target/
-/dwd-geotiff/
-/simra/
-/tree.json
-/octree.txt
+.idea/
+completions/
+target/
+dwd-geotiff/
+simra/
+results/
 *bench.json
 *.tar.gz

@@ -1,0 +1,17 @@
+default:
+    @just --list
+
+setup:
+    tofu apply -auto-approve
+
+server:
+    tofu apply -auto-approve -target=google_compute_instance.bench-vm
+
+restart:
+    tofu apply -auto-approve -replace=google_compute_instance.bench-vm
+
+destroy:
+    tofu destroy -auto-approve
+
+destroy-server:
+    tofu destroy -auto-approve -target=google_compute_instance.bench-vm
