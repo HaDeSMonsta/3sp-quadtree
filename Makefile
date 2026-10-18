@@ -17,6 +17,10 @@ ifneq ($(DEPTH),)
 FLAGS += --depth $(DEPTH)
 endif
 
+.PHONY: help
+help:
+	@grep -E '^\.PHONY:' $(MAKEFILE_LIST) | awk '{for (i = 2; i <= NF; i++) print $$i}' | sort
+
 .PHONY: default
 default: debug release
 
