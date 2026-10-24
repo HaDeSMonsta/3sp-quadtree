@@ -293,6 +293,7 @@ fn main() -> Result<()> {
 
         let data = json!({
             "type": target.bench_name(),
+            "engine": "quadtree",
             "data": results,
         });
         store_report(&data).context("failed to save benchmark results")?;
