@@ -20,6 +20,6 @@ resource "google_compute_instance" "bench-vm" {
 
   metadata = {
     enable-osconfig = "TRUE"
-    startup-script = templatefile("./setup.sh", {})
+    startup-script  = templatefile("./setup.sh", {})
   }
 }
