@@ -78,11 +78,10 @@ fn main() -> Result<()> {
                     .iter()
                     .map(|(&id, &value)| (id, value))
                     .collect::<Vec<_>>();
-                let point_count = candidates.len();
                 assert!(
-                    point_count >= RUNS,
+                    candidates.len() >= RUNS,
                     "expected at least {RUNS} candidates, found {}",
-                    point_count,
+                    candidates.len(),
                 );
                 // So the random shuffle has the same start
                 candidates.sort_unstable_by_key(|&(id, _)| id);
@@ -177,7 +176,7 @@ fn main() -> Result<()> {
                     "full_runtime": full_time,
                     "cap": args.cap,
                     "depth": args.depth,
-                    "num points": point_count,
+                    "num points": octree.len(),
                     "data read time": data.read_time,
                     "data parse time": data.parse_time,
                     "octree construction time": oct_creation_dur,
@@ -194,11 +193,10 @@ fn main() -> Result<()> {
                 let data = bench::get_simra_points().context("failed to get points")?;
 
                 let mut candidates = data.points.iter().map(|point| point.id).collect::<Vec<_>>();
-                let point_count = candidates.len();
                 assert!(
-                    point_count >= RUNS,
+                    candidates.len() >= RUNS,
                     "expected at least {RUNS} candidates, found {}",
-                    point_count,
+                    candidates.len(),
                 );
                 // So the random shuffle has the same start
                 candidates.sort_unstable();
@@ -282,7 +280,7 @@ fn main() -> Result<()> {
                     "full_runtime": full_time,
                     "cap": args.cap,
                     "depth": args.depth,
-                    "num points": point_count,
+                    "num points": quadtree.len(),
                     "data parse time": data.parse_time,
                     "quadtree construction time": quad_creation_dur,
                     "quadtree size": quadtree.size_bytes(),

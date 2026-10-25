@@ -74,20 +74,24 @@ pub fn geotiff_to_3d_points_mapping<S: ::std::hash::BuildHasher>(
     let dx = (max_x - min_x) / width as f64;
     let dy = (max_y - min_y) / height as f64;
 
-    let mut points = Vec::with_capacity(width * height);
+    // let mut points = Vec::with_capacity(width * height);
+    let mut points = Vec::with_capacity(50); // We kinda filter a lot
     for row in 0..height {
         for col in 0..width {
             let x = (col as f64 + 0.5).mul_add(dx, min_x);
             let y = (row as f64 + 0.5).mul_add(-dy, max_y);
             let id = id_offset + row * width + col;
-            points.push(DataPoint3D::new(id, Point3D::new(x, y, epoch_seconds)));
 
             match geotiff.get_value_at::<f32>(&geo_types::Coord { x, y }, 0) {
-                Some(0.0) => {}
-                Some(val) => {
+                Some(val) if val > 0.0 => {
+                    // Build tree only from points that actually contain data
+                    points.push(DataPoint3D::new(id, Point3D::new(x, y, epoch_seconds)));
                     let mut guard = map.lock().expect("we won't panic");
                     guard.insert(id, val);
                 }
+                // 0.0 == no rain; < 0.0 == invalid data
+                // Don't care about both
+                Some(_) => {}
                 None => panic!("no value @ {x}/{y}"),
             }
         }
@@ -96,6 +100,10 @@ pub fn geotiff_to_3d_points_mapping<S: ::std::hash::BuildHasher>(
     points
 }
 
+/// This returns a vec and map THAT ONLY CONTAIN RAIN VALUES
+///
+/// Filter non rain (0.0) and no data (< 0.0).
+/// If you want to change that, go into `geotiff_to_3d_points_mapping`
 #[allow(clippy::type_complexity)] // Yeah, this is not good
 pub fn geotiffs_to_3d_points_mapping(
     geotiffs: &[(&geotiff::GeoTiff, &str)],
