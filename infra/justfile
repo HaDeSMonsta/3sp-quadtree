@@ -1,10 +1,10 @@
 default:
 	@just --list
 
-setup:
+apply:
 	tofu apply -auto-approve
 
-server:
+apply-server:
 	tofu apply -auto-approve -target=google_compute_instance.bench-vm
 
 restart:
@@ -17,4 +17,6 @@ destroy-server:
 	tofu destroy -auto-approve -target=google_compute_instance.bench-vm
 
 move:
-	gcloud compute scp ./clone.sh workhorse
+	gcloud compute scp ./clone.sh workhorse:~/
+	gcloud compute scp ../dwd.tar.gz workhorse:~/
+	gcloud compute scp ../simra.tar.gz workhorse:~/
