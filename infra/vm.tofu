@@ -4,7 +4,7 @@ resource "google_compute_instance" "bench-vm" {
 
     initialize_params {
       image = "projects/debian-cloud/global/images/debian-13-trixie-v20260921"
-      size  = 10
+      size  = 20
     }
   }
 
