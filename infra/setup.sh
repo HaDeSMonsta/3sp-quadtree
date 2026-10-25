@@ -18,6 +18,6 @@ status "upgrade"
 apt upgrade -y
 
 status "install pkgs"
-apt install -y vim git btop make gcc hyperfine
+apt install -y vim git btop make just gcc hyperfine python3 python3-venv
 
 status "done"
