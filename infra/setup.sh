@@ -20,9 +20,4 @@ apt upgrade -y
 status "install pkgs"
 apt install -y vim git btop make gcc hyperfine
 
-status "setup project"
-git clone --depth 1 https://git.hadesmedia.de/hades/quadtree.git /root/quadtree
-cd quadtree
-make release
-
 status "done"

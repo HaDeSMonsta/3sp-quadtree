@@ -15,3 +15,6 @@ destroy:
 
 destroy-server:
 	tofu destroy -auto-approve -target=google_compute_instance.bench-vm
+
+move:
+	gcloud compute scp ./clone.sh workhorse
