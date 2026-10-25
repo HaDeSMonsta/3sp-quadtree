@@ -20,3 +20,6 @@ move:
 	gcloud compute scp ./clone.sh workhorse:~/
 	gcloud compute scp ../dwd.tar.gz workhorse:~/
 	gcloud compute scp ../simra.tar.gz workhorse:~/
+
+connect:
+	gcloud compute ssh workhorse --zone europe-west3-c --project sp-benchmarks
