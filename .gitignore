@@ -1,7 +1,7 @@
 .idea/
 completions/
 target/
-dwd-geotiff/
+dwd-*/
 simra/
 results/
 *bench.json
