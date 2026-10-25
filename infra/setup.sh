@@ -6,10 +6,13 @@ status () {
 	printf "$1\n" > /root/status.md
 }
 
-# I want the sourcing setup when I ssh into it
 status "install rust"
-curl https://sh.rustup.rs -sSf | sh -s -- -y
-source /root/.cargo/env
+export RUSTUP_HOME=/usr/local/rustup
+export CARGO_HOME=/usr/local/cargo
+curl https://sh.rustup.rs -sSf | sh -s -- -y --profile minimal --no-modify-path
+export PATH="/usr/local/cargo/bin:$PATH"
+chmod -R a+rX /usr/local/rustup /usr/local/cargo
+printf 'export RUSTUP_HOME=/usr/local/rustup\nexport PATH=/usr/local/cargo/bin:$PATH\n' > /etc/profile.d/rust.sh
 
 status "update"
 apt update
